@@ -264,8 +264,8 @@ function tally(room, pollId) {
     poll.options.forEach((o) => (counts[o.id] = 0));
   }
   let total = 0;
-  for (const socketId in votes) {
-    const opt = votes[socketId];
+  for (const voterId in votes) {
+    const opt = votes[voterId];
     counts[opt] = (counts[opt] || 0) + 1;
     total++;
   }
@@ -313,15 +313,28 @@ io.on('connection', (socket) => {
   socket.data.code = null;
 
   // ---- HOST ----
-  socket.on('host:create', (_payload, ack) => {
-    const code = makeCode();
+  socket.on('host:create', (payload, ack) => {
+    let code;
+    const wanted = payload && payload.code;
+    if (wanted && String(wanted).trim()) {
+      // Sanitize a user-chosen code: letters/digits only, 3-6 chars, uppercase.
+      code = String(wanted).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+      if (code.length < 3) {
+        return ack && ack({ error: 'Code needs at least 3 letters or numbers.' });
+      }
+      if (rooms.has(code)) {
+        return ack && ack({ error: 'That code is already in use. Pick another.' });
+      }
+    } else {
+      code = makeCode();
+    }
     const room = {
       code,
       hostId: socket.id,
       activeIndex: -1,
       revealed: false,
-      votes: {}, // pollId -> { socketId: optionId }
-      participants: new Set(),
+      votes: {}, // pollId -> { voterId: optionId }
+      participants: new Map(), // voterId -> live socket count
     };
     rooms.set(code, room);
     socket.data.role = 'host';
@@ -340,6 +353,9 @@ io.on('connection', (socket) => {
     socket.join(code + ':host');
     if (typeof ack === 'function')
       ack({ code, polls: CLIENT_POLLS, state: hostState(room) });
+    // Push state so the presenter view re-renders the active poll immediately,
+    // not just on the next vote.
+    emitHost(room);
   });
 
   socket.on('host:activate', ({ index } = {}) => {
@@ -387,12 +403,16 @@ io.on('connection', (socket) => {
   });
 
   // ---- PARTICIPANT ----
-  socket.on('participant:join', ({ code } = {}, ack) => {
+  socket.on('participant:join', ({ code, voterId } = {}, ack) => {
     const room = rooms.get((code || '').toUpperCase().trim());
     if (!room) return ack && ack({ error: 'Room not found. Check the code.' });
+    // A stable per-student id (kept in the phone's sessionStorage) so that a
+    // phone sleeping and reconnecting doesn't create a second phantom vote.
+    const vid = (voterId && String(voterId).slice(0, 60)) || socket.id;
     socket.data.role = 'vote';
     socket.data.code = room.code;
-    room.participants.add(socket.id);
+    socket.data.voterId = vid;
+    room.participants.set(vid, (room.participants.get(vid) || 0) + 1);
     socket.join(room.code + ':vote');
     const idx = room.activeIndex;
     const active =
@@ -400,7 +420,7 @@ io.on('connection', (socket) => {
         ? {
             poll: CLIENT_POLLS[idx],
             revealed: room.revealed,
-            myVote: (room.votes[POLLS[idx].id] || {})[socket.id] || null,
+            myVote: (room.votes[POLLS[idx].id] || {})[vid] || null,
             tally: room.revealed ? tally(room, POLLS[idx].id) : null,
           }
         : null;
@@ -411,13 +431,17 @@ io.on('connection', (socket) => {
   socket.on('participant:vote', ({ pollId, optionId } = {}) => {
     const room = rooms.get(socket.data.code);
     if (!room) return;
+    const voter = socket.data.voterId;
+    if (!voter) return;
     const poll = pollById(pollId);
     if (!poll || !Array.isArray(poll.options)) return;
     if (!poll.options.some((o) => o.id === optionId)) return;
-    // Only accept votes for the currently active poll.
-    if (POLLS[room.activeIndex] && POLLS[room.activeIndex].id !== pollId) return;
+    // Only accept votes for the currently active poll (rejects stale/queued
+    // votes and votes cast when nothing is open).
+    const active = POLLS[room.activeIndex];
+    if (!active || active.id !== pollId) return;
     if (!room.votes[pollId]) room.votes[pollId] = {};
-    room.votes[pollId][socket.id] = optionId; // one vote per socket, changeable
+    room.votes[pollId][voter] = optionId; // one vote per student, changeable
     socket.emit('participant:voteAck', { pollId, optionId });
     emitHost(room);
   });
@@ -425,8 +449,11 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     const room = rooms.get(socket.data.code);
     if (!room) return;
-    if (socket.data.role === 'vote') {
-      room.participants.delete(socket.id);
+    if (socket.data.role === 'vote' && socket.data.voterId) {
+      const vid = socket.data.voterId;
+      const n = (room.participants.get(vid) || 0) - 1;
+      if (n <= 0) room.participants.delete(vid);
+      else room.participants.set(vid, n);
       // Keep their vote in the tally even if their phone sleeps briefly.
       emitHost(room);
     }

@@ -171,7 +171,10 @@
   <div class="card hidden" id="hostCard">
     <h2>Presenter</h2>
     <p class="hosthint" style="margin-bottom:14px;">Open this on the screen you'll share in Zoom. Students join on their phones with the room code.</p>
+    <input id="customCode" type="text" maxlength="6" placeholder="ROOM CODE (optional)" autocomplete="off" style="letter-spacing:4px;" />
+    <div class="err" id="createErr"></div>
     <button class="btn" id="createBtn">Start a new room</button>
+    <p class="hosthint" style="margin-top:10px;">Leave the code blank for a random one, or type your own (3–6 letters/numbers) to set it in advance.</p>
   </div>
 </div>
 
@@ -234,6 +237,19 @@
 const socket = io();
 const $ = (id) => document.getElementById(id);
 
+// Stable per-tab student id so a phone that sleeps and reconnects keeps one
+// vote instead of creating a duplicate.
+let voterId;
+try {
+  voterId = sessionStorage.getItem('bp_vid');
+  if (!voterId) {
+    voterId = 'v-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    sessionStorage.setItem('bp_vid', voterId);
+  }
+} catch (e) {
+  voterId = 'v-' + Math.random().toString(36).slice(2);
+}
+
 // Palettes
 const SPECTRUM_COLORS = { sd:'#d7263d', d:'#ef6c3b', n:'#8b93a7', a:'#4c9f70', sa:'#2f9e44' };
 const BINARY_COLORS = ['#3aa0d1', '#e0a13a'];
@@ -258,6 +274,12 @@ function show(view) {
   ['landing','host','part'].forEach((v) => $(v).classList.toggle('hidden', v !== view));
 }
 
+// Clear the saved role/room (e.g. a stale room that no longer exists) but keep
+// the stable voter id.
+function clearSession() {
+  try { sessionStorage.removeItem('bp_role'); sessionStorage.removeItem('bp_code'); } catch (e) {}
+}
+
 // ---- Landing ----
 $('hostToggle').onclick = () => $('hostCard').classList.toggle('hidden');
 $('codeInput').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase(); });
@@ -267,11 +289,11 @@ $('codeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoi
 function doJoin() {
   const code = $('codeInput').value.trim().toUpperCase();
   if (code.length < 3) { $('joinErr').textContent = 'Enter the room code.'; return; }
-  socket.emit('participant:join', { code }, (res) => {
+  socket.emit('participant:join', { code, voterId }, (res) => {
     if (!res || res.error) { $('joinErr').textContent = (res && res.error) || 'Could not join.'; return; }
     roomCode = code;
     $('pCode').textContent = code;
-    try { localStorage.setItem('bp_role','vote'); localStorage.setItem('bp_code', code); } catch(e){}
+    try { sessionStorage.setItem('bp_role','vote'); sessionStorage.setItem('bp_code', code); } catch(e){}
     show('part');
     if (res.active) renderParticipantPoll(res.active);
     else showWaiting();
@@ -279,10 +301,15 @@ function doJoin() {
 }
 
 // ---- Host ----
+$('customCode').addEventListener('input', (e) => {
+  e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+});
 $('createBtn').onclick = () => {
-  socket.emit('host:create', {}, (res) => {
+  const wanted = $('customCode').value.trim();
+  socket.emit('host:create', { code: wanted }, (res) => {
+    if (!res || res.error) { $('createErr').textContent = (res && res.error) || 'Could not start room.'; return; }
     POLLS = res.polls; roomCode = res.code;
-    try { localStorage.setItem('bp_role','host'); localStorage.setItem('bp_code', res.code); } catch(e){}
+    try { sessionStorage.setItem('bp_role','host'); sessionStorage.setItem('bp_code', res.code); } catch(e){}
     setupHost(res.code);
   });
 };
@@ -505,19 +532,19 @@ socket.on('participant:revealed', (d) => {
 // =====================================================================
 socket.on('connect', () => {
   let role, code;
-  try { role = localStorage.getItem('bp_role'); code = localStorage.getItem('bp_code'); } catch(e){}
+  try { role = sessionStorage.getItem('bp_role'); code = sessionStorage.getItem('bp_code'); } catch(e){}
   if (!role || !code) return;
   if (role === 'host') {
     socket.emit('host:resume', { code }, (res) => {
-      if (!res || res.error) { try{localStorage.clear();}catch(e){} return; }
+      if (!res || res.error) { clearSession(); return; }
       POLLS = res.polls; roomCode = code;
       setupHost(code);
-      if (res.state) socket.emit; // state will arrive via host:state below
-      if (res.state) { hostIndex = res.state.activeIndex; }
+      // The server pushes host:state right after resume, which renders the
+      // active poll (or the idle screen) for us.
     });
   } else if (role === 'vote') {
-    socket.emit('participant:join', { code }, (res) => {
-      if (!res || res.error) { try{localStorage.clear();}catch(e){} return; }
+    socket.emit('participant:join', { code, voterId }, (res) => {
+      if (!res || res.error) { clearSession(); return; }
       roomCode = code; $('pCode').textContent = code; show('part');
       if (res.active) renderParticipantPoll(res.active); else showWaiting();
     });
