@@ -71,6 +71,9 @@
   .url { font-size: 20px; color: var(--accent); font-weight: 600; }
   .counter { font-size: 18px; color: var(--muted); white-space: nowrap; }
   .counter b { color: var(--ink); font-size: 22px; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .newroom-btn { background: var(--panel2); border: 1px solid var(--line); color: var(--muted); font-size: 14px; padding: 8px 14px; border-radius: 9px; white-space: nowrap; }
+  .newroom-btn:hover { color: var(--ink); border-color: var(--accent); }
 
   .stage {
     flex: 1; display: flex; flex-direction: column; justify-content: center;
@@ -204,7 +207,10 @@
       <span class="lbl">Join at</span><span class="url" id="hUrl">—</span>
       <span class="lbl">Code</span><span class="code" id="hCode">----</span>
     </div>
-    <div class="counter"><b id="hVoted">0</b> of <b id="hPart">0</b> voted</div>
+    <div class="topbar-right">
+      <div class="counter"><b id="hVoted">0</b> of <b id="hPart">0</b> voted</div>
+      <button class="newroom-btn" id="cNewRoom" title="Start a fresh room with all votes cleared">⟳ New room</button>
+    </div>
   </div>
 
   <div class="stage" id="hStage">
@@ -349,10 +355,25 @@ $('createBtn').onclick = () => {
 function setupHost(code) {
   $('hCode').textContent = code;
   $('hUrl').textContent = location.host;
+  $('hVoted').textContent = '0';
+  $('hPart').textContent = '0';
   show('host');
   hostIndex = -1;
   renderHostIdle();
 }
+
+// Start a brand-new room (clears every vote, new code). Confirm first so it
+// can't be triggered by accident mid-lecture.
+$('cNewRoom').onclick = () => {
+  if (!confirm('Start a brand-new room?\n\nThis clears ALL votes and gives you a new room code. Anyone already joined will need to rejoin with the new code.')) return;
+  socket.emit('host:create', {}, (res) => {
+    if (!res || res.error) { alert((res && res.error) || 'Could not start a new room.'); return; }
+    POLLS = res.polls; roomCode = res.code;
+    visited.clear();
+    try { sessionStorage.setItem('bp_role', 'host'); sessionStorage.setItem('bp_code', res.code); } catch (e) {}
+    setupHost(res.code);
+  });
+};
 
 let hostIndex = -1;
 let hostRevealed = false;
