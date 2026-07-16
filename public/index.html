@@ -129,6 +129,25 @@
   .ctrl:disabled { opacity: .4; cursor: default; }
   .nowplaying { color: var(--muted); font-size: 15px; }
   .speaker-note { color: var(--warn); font-size: 15px; max-width: 640px; }
+  .ctrl.menu { background: var(--accent); color: #06122b; border-color: transparent; }
+
+  /* Question picker overlay */
+  #menu { position: fixed; inset: 0; background: rgba(6,10,18,0.72); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+  .menu-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; width: 100%; max-width: 780px; max-height: 86vh; display: flex; flex-direction: column; overflow: hidden; }
+  .menu-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px 6px; }
+  .menu-head h2 { margin: 0; font-size: 22px; }
+  .menu-close { background: var(--panel2); border: 1px solid var(--line); color: var(--ink); font-size: 18px; width: 40px; height: 40px; border-radius: 10px; }
+  .menu-hint { color: var(--muted); font-size: 14px; margin: 0 22px 10px; }
+  #menuList { overflow-y: auto; padding: 4px 14px 16px; }
+  .menu-section { color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; font-size: 13px; font-weight: 700; margin: 16px 8px 8px; }
+  .menu-item { width: 100%; text-align: left; display: flex; gap: 12px; align-items: flex-start; padding: 13px 16px; margin-bottom: 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel2); color: var(--ink); }
+  .menu-item:hover { border-color: var(--accent); }
+  .menu-item.active { border-color: var(--accent); background: rgba(110,168,254,0.16); }
+  .menu-item .mnum { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 7px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .menu-item.done .mnum { background: var(--good); color: #04140a; }
+  .menu-item .mbody { flex: 1; min-width: 0; }
+  .menu-item .mtitle { display: block; font-weight: 700; font-size: 16px; }
+  .menu-item .msub { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; line-height: 1.35; }
 
   /* ---------------- Participant ---------------- */
   #part { min-height: 100%; display: flex; flex-direction: column; }
@@ -203,6 +222,7 @@
   </div>
 
   <div class="controls">
+    <button class="ctrl menu" id="cMenu">☰ Questions</button>
     <button class="ctrl" id="cPrev">◀ Prev</button>
     <button class="ctrl primary" id="cNext">Start ▶</button>
     <button class="ctrl reveal" id="cReveal">Reveal results</button>
@@ -211,6 +231,18 @@
     <div>
       <div class="nowplaying" id="cNow">—</div>
       <div class="speaker-note" id="cNote"></div>
+    </div>
+  </div>
+
+  <!-- Question picker overlay -->
+  <div id="menu" class="hidden">
+    <div class="menu-panel">
+      <div class="menu-head">
+        <h2>Jump to any question</h2>
+        <button class="menu-close" id="menuClose">✕</button>
+      </div>
+      <p class="menu-hint">Pick any question in any order. A ✓ marks ones you've already opened.</p>
+      <div id="menuList"></div>
     </div>
   </div>
 </div>
@@ -335,9 +367,51 @@ function activate(i) {
   socket.emit('host:activate', { index: i });
 }
 
+// ---- Question picker ----
+const visited = new Set();
+const shorten = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : (s || ''));
+
+function menuLabel(poll) {
+  if (poll.kind === 'ladder-summary') return { title: 'Results — comfort collapse', sub: '' };
+  if (poll.stageLabel) return { title: poll.stageLabel, sub: shorten(poll.context || poll.question, 80) };
+  if (poll.rungLabel) return { title: 'Would you allow it? — ' + poll.rungLabel, sub: shorten(poll.question, 80) };
+  return { title: shorten(poll.question, 78), sub: shorten(poll.context || '', 80) };
+}
+
+function buildMenu() {
+  const list = $('menuList');
+  list.innerHTML = '';
+  let lastSection = null;
+  POLLS.forEach((poll, i) => {
+    if (poll.section !== lastSection) {
+      lastSection = poll.section;
+      const h = document.createElement('div');
+      h.className = 'menu-section';
+      h.textContent = poll.section;
+      list.appendChild(h);
+    }
+    const { title, sub } = menuLabel(poll);
+    const done = visited.has(i);
+    const item = document.createElement('button');
+    item.className = 'menu-item' + (i === hostIndex ? ' active' : '') + (done ? ' done' : '');
+    item.innerHTML =
+      '<span class="mnum">' + (done ? '✓' : i + 1) + '</span>' +
+      '<span class="mbody"><span class="mtitle">' + title + '</span>' +
+      (sub ? '<span class="msub">' + sub + '</span>' : '') + '</span>';
+    item.onclick = () => { activate(i); closeMenu(); };
+    list.appendChild(item);
+  });
+}
+function openMenu() { buildMenu(); $('menu').classList.remove('hidden'); }
+function closeMenu() { $('menu').classList.add('hidden'); }
+$('cMenu').onclick = openMenu;
+$('menuClose').onclick = closeMenu;
+$('menu').addEventListener('click', (e) => { if (e.target.id === 'menu') closeMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+
 function renderHostIdle() {
   $('hSection').textContent = 'Ready';
-  $('hQuestion').innerHTML = 'Press <b>Start ▶</b> to open the first question.';
+  $('hQuestion').innerHTML = 'Click <b>☰ Questions</b> to pick any question in any order — or <b>Start ▶</b> to begin with the first.';
   ['hStageLabel','hContext','hVotingNote','hBars','hDrift'].forEach((id)=>$(id).classList.add('hidden'));
   $('cNow').textContent = POLLS.length + ' questions loaded';
   $('cNote').textContent = '';
@@ -347,6 +421,7 @@ function renderHostIdle() {
 socket.on('host:state', (st) => {
   hostIndex = st.activeIndex;
   hostRevealed = st.revealed;
+  if (st.activeIndex >= 0) visited.add(st.activeIndex);
   $('host').classList.toggle('revealed', !!st.revealed && st.activeIndex >= 0);
   $('hVoted').textContent = st.votedCount || 0;
   $('hPart').textContent = st.participantCount || 0;
