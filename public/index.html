@@ -473,7 +473,7 @@ function renderHostPoll(poll, st) {
   if (isSummary) {
     $('hVotingNote').classList.add('hidden');
     $('hBars').classList.add('hidden');
-    renderLadderSummary(st.groupTallies || []);
+    renderLadderSummary(st.groupTallies || [], poll.summaryHeading);
     return;
   }
 
@@ -486,7 +486,7 @@ function renderHostPoll(poll, st) {
     $('hVotingNote').classList.add('hidden');
     renderHostBars(poll, st.tally);
     if (poll.group === 'ab') renderDrift(st.groupTallies || [], 'B', 'Support for System B (opaque) across stages');
-    else if (poll.group === 'coach') renderDrift(st.groupTallies || [], 'yes', 'Would use the perfect life coach');
+    else if (poll.compareWith) renderDrift(st.groupTallies || [], 'yes', 'Would use the coach at the top of the ladder');
     else $('hDrift').classList.add('hidden');
   }
 }
@@ -528,10 +528,10 @@ function renderDrift(gt, target, heading) {
   wrap.innerHTML = html;
 }
 
-function renderLadderSummary(gt) {
+function renderLadderSummary(gt, heading) {
   const wrap = $('hDrift');
   wrap.classList.remove('hidden');
-  let html = '<h3>Would allow an AI they can\'t understand to… (% Yes)</h3>';
+  let html = '<h3>' + (heading || 'Would allow an AI they can\'t understand to… (% Yes)') + '</h3>';
   gt.forEach((g) => {
     if (g.rungLabel === undefined && g.stageLabel === undefined) return;
     const y = pct((g.counts && g.counts.yes) || 0, g.total);

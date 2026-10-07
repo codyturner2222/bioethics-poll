@@ -254,31 +254,77 @@ const POLLS = [
     ],
   },
   {
-    id: 'fds_coach1',
-    section: 'FDS · Self Enhancement',
-    group: 'coach',
+    id: 'fds_rung1',
+    section: 'FDS · Privacy ladder',
+    group: 'privacy',
     kind: 'binary',
-    stageLabel: 'First vote · The perfect life coach',
+    rungLabel: 'The coach',
     context: 'Imagine an AI assistant could cut your risk of serious illness in half, noticeably improve your grades, and make you happier. To do so, it needs continuous access to your messages, calendar, location, health data, browsing history, and everything you write. The data is perfectly secure, never sold, and never seen by another human being.',
     question: 'Would you use it?',
     options: [
-      { id: 'yes', label: 'Yes' },
+      { id: 'yes', label: 'Yes, I would use it' },
       { id: 'no', label: 'No' },
     ],
   },
   {
-    id: 'fds_coach2',
-    section: 'FDS · Self Enhancement',
-    group: 'coach',
+    id: 'fds_rung2',
+    section: 'FDS · Privacy ladder',
+    group: 'privacy',
     kind: 'binary',
-    stageLabel: 'Second vote · The perfect life coach',
-    context: 'Imagine an AI assistant could cut your risk of serious illness in half, noticeably improve your grades, and make you happier. To do so, it needs continuous access to your messages, calendar, location, health data, browsing history, and everything you write. The data is perfectly secure, never sold, and never seen by another human being.',
-    question: 'Now that we have talked about privacy: would you use it?',
+    rungLabel: '+ your friends',
+    context: 'Same coach. But because it reads your messages, it also learns a great deal about everyone you talk to.',
+    question: 'Would you still use it?',
     options: [
-      { id: 'yes', label: 'Yes' },
+      { id: 'yes', label: 'Yes, I would use it' },
       { id: 'no', label: 'No' },
     ],
-    note: 'Shows the shift from the first vote below the bars.',
+  },
+  {
+    id: 'fds_rung3',
+    section: 'FDS · Privacy ladder',
+    group: 'privacy',
+    kind: 'binary',
+    rungLabel: '+ never forgets',
+    context: 'Same coach, and it learns about everyone you talk to. Also, once it knows something about you, it can never forget it. Nothing can be deleted, by you or anyone.',
+    question: 'Would you still use it?',
+    options: [
+      { id: 'yes', label: 'Yes, I would use it' },
+      { id: 'no', label: 'No' },
+    ],
+  },
+  {
+    id: 'fds_rung4',
+    section: 'FDS · Privacy ladder',
+    group: 'privacy',
+    kind: 'binary',
+    rungLabel: '+ knows you better',
+    context: 'Same coach, it learns about everyone you talk to, and it never forgets. Also, it now knows you better than you know yourself. It can predict your choices before you make them.',
+    question: 'Would you still use it?',
+    options: [
+      { id: 'yes', label: 'Yes, I would use it' },
+      { id: 'no', label: 'No' },
+    ],
+  },
+  {
+    id: 'fds_ladsum',
+    section: 'FDS · Privacy ladder',
+    group: 'privacy',
+    kind: 'ladder-summary',
+    summaryHeading: 'Would use the coach… (% Yes)',
+    question: 'Where does the room’s comfort collapse?',
+  },
+  {
+    id: 'fds_revote',
+    section: 'FDS · Privacy ladder',
+    kind: 'binary',
+    compareWith: 'fds_rung4',
+    context: 'The coach that learns about everyone you talk to, never forgets, and knows you better than you know yourself.',
+    question: 'Now that we have talked about privacy: would you use it?',
+    options: [
+      { id: 'yes', label: 'Yes, I would use it' },
+      { id: 'no', label: 'No' },
+    ],
+    note: 'Shows the shift from the first vote on the top rung below the bars.',
   },
 ];
 
@@ -348,6 +394,12 @@ function hostState(room) {
   if (poll) {
     state.tally = tally(room, poll.id);
     if (poll.group) state.groupTallies = groupTallies(room, poll.group);
+    if (poll.compareWith) {
+      state.groupTallies = [
+        { id: poll.compareWith, stageLabel: 'First vote', ...tally(room, poll.compareWith) },
+        { id: poll.id, stageLabel: 'After discussion', ...tally(room, poll.id) },
+      ];
+    }
   }
   return state;
 }
