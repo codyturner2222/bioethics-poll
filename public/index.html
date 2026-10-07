@@ -485,7 +485,8 @@ function renderHostPoll(poll, st) {
   } else {
     $('hVotingNote').classList.add('hidden');
     renderHostBars(poll, st.tally);
-    if (poll.group === 'ab') renderDrift(st.groupTallies || []);
+    if (poll.group === 'ab') renderDrift(st.groupTallies || [], 'B', 'Support for System B (opaque) across stages');
+    else if (poll.group === 'coach') renderDrift(st.groupTallies || [], 'yes', 'Would use the perfect life coach');
     else $('hDrift').classList.add('hidden');
   }
 }
@@ -509,14 +510,14 @@ function renderHostBars(poll, tally) {
   });
 }
 
-function renderDrift(gt) {
+function renderDrift(gt, target, heading) {
   const wrap = $('hDrift');
   const rows = gt.filter((g) => g.total > 0);
   if (!rows.length) { wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
-  let html = '<h3>Support for System B (opaque) across stages</h3>';
+  let html = '<h3>' + heading + '</h3>';
   gt.forEach((g, i) => {
-    const bpct = pct((g.counts && g.counts.B) || 0, g.total);
+    const bpct = pct((g.counts && g.counts[target]) || 0, g.total);
     const label = (g.stageLabel || ('Stage ' + (i+1))).split('·')[0].trim();
     const val = g.total > 0 ? bpct + '%' : '—';
     html +=

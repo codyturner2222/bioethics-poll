@@ -229,6 +229,57 @@ const POLLS = [
     options: SPECTRUM,
     note: 'The mic-drop. Your human doctor is also a black box to you. Send them out arguing.',
   },
+
+  // ---- FDS 100-6 · AI and Self Enhancement --------------------------------
+  {
+    id: 'fds_honest1',
+    section: 'FDS · Self Enhancement',
+    kind: 'binary',
+    context: "An AI coach privately points out every time you're unkind, defensive, or unfair.",
+    question: 'Would you want it, or would it make you unhealthily, neurotically aware of your own flaws?',
+    options: [
+      { id: 'want', label: "I'd want it" },
+      { id: 'neurotic', label: 'It would make me neurotic' },
+    ],
+  },
+  {
+    id: 'fds_honest2',
+    section: 'FDS · Self Enhancement',
+    kind: 'binary',
+    context: 'Suppose you used the honest coach, and over a year you became noticeably kinder and fairer.',
+    question: 'Are you a better person, or just a better-behaved one?',
+    options: [
+      { id: 'better', label: 'A better person' },
+      { id: 'behaved', label: 'Just a better-behaved one' },
+    ],
+  },
+  {
+    id: 'fds_coach1',
+    section: 'FDS · Self Enhancement',
+    group: 'coach',
+    kind: 'binary',
+    stageLabel: 'First vote · The perfect life coach',
+    context: 'Imagine an AI assistant could cut your risk of serious illness in half, noticeably improve your grades, and make you happier. To do so, it needs continuous access to your messages, calendar, location, health data, browsing history, and everything you write. The data is perfectly secure, never sold, and never seen by another human being.',
+    question: 'Would you use it?',
+    options: [
+      { id: 'yes', label: 'Yes' },
+      { id: 'no', label: 'No' },
+    ],
+  },
+  {
+    id: 'fds_coach2',
+    section: 'FDS · Self Enhancement',
+    group: 'coach',
+    kind: 'binary',
+    stageLabel: 'Second vote · The perfect life coach',
+    context: 'Imagine an AI assistant could cut your risk of serious illness in half, noticeably improve your grades, and make you happier. To do so, it needs continuous access to your messages, calendar, location, health data, browsing history, and everything you write. The data is perfectly secure, never sold, and never seen by another human being.',
+    question: 'Now that we have talked about privacy: would you use it?',
+    options: [
+      { id: 'yes', label: 'Yes' },
+      { id: 'no', label: 'No' },
+    ],
+    note: 'Shows the shift from the first vote below the bars.',
+  },
 ];
 
 // A lighter version sent to clients (drop host-only speaker notes).
