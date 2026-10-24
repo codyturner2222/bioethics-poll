@@ -327,6 +327,51 @@ const POLLS = [
     note: 'Shows the shift from the first vote on the top rung below the bars.',
   },
 
+  // ---- FDS 100-6 · Relationships with AI: opening -----------------------
+  {
+    id: 'fds_lonely_guess',
+    section: 'FDS · Relationships with AI',
+    kind: 'multiple',
+    context: 'A lonely first-year college student does one thing every day for two weeks: text a randomly paired first-year student, chat with a supportive AI chatbot, or write a one-sentence journal entry.',
+    question: 'Which do you predict reduces their loneliness the most?',
+    options: [
+      { id: 'peer', label: 'Texting a random first-year student' },
+      { id: 'bot', label: 'Chatting with the supportive AI chatbot' },
+      { id: 'journal', label: 'Writing the one-sentence journal entry' },
+      { id: 'same', label: 'No real difference between them' },
+    ],
+    note: 'Reveal: UBC study (296 first-years, JESP 2026). Only texting a person lowered loneliness. The chatbot did no better than journaling, though it lifted mood more, and it was MORE empathetic than the human partners.',
+  },
+  {
+    id: 'fds_lonely_tonight',
+    section: 'FDS · Relationships with AI',
+    kind: 'multiple',
+    question: 'Suppose something makes you feel less lonely tonight but lonelier over the next year. Is it good for you?',
+    options: [
+      { id: 'yes', label: 'Yes, feeling better matters' },
+      { id: 'no', label: "No, it's bad for me overall" },
+      { id: 'depends', label: 'It depends on how I use it' },
+    ],
+    note: 'Callback to the experience machine (9/9): is a good life just how it feels from the inside?',
+  },
+  {
+    id: 'fds_humanspass',
+    section: 'FDS · Relationships with AI',
+    kind: 'spectrum',
+    question: 'The four conditions for genuine friendship are rarely all met in human relationships either. If humans get a pass, AI should too.',
+    options: SPECTRUM,
+    note: 'Run right after the private friendship audit.',
+  },
+
+  {
+    id: 'fds_uncertain',
+    section: 'FDS · Relationships with AI',
+    kind: 'spectrum',
+    question: 'A relationship with an AI companion you are genuinely uncertain is conscious is more meaningful than a relationship with a human companion you are genuinely uncertain actually values you.',
+    options: SPECTRUM,
+    note: "Run after Danaher's argument from analogy: we never get inside human friends' heads either.",
+  },
+
   // ---- FDS 100-6 · Relationships with AI: Design your companion ---------
   // kind 'design': each student sets every dial, then locks in once.
   // Every answer carries a friction score from 0 to 100: how much of the
@@ -462,6 +507,85 @@ const POLLS = [
       { id: 'diversity', label: 'Diversity of interactions' },
       { id: 'none', label: 'None of them' },
     ],
+  },
+
+  // ---- FDS 100-6 · Relationships with AI: after the design poll ---------
+  {
+    id: 'fds_authenticity',
+    section: 'FDS · Relationships with AI',
+    kind: 'spectrum',
+    question: "A human friendship where you're constantly performing an idealized version of yourself is more ethically troubling than a relationship with an AI that accepts you unconditionally.",
+    options: SPECTRUM,
+    note: 'Most of the room just designed an AI that accepts them unconditionally.',
+  },
+  {
+    id: 'fds_tenyear',
+    section: 'FDS · Relationships with AI',
+    kind: 'spectrum',
+    question: 'A person with a thriving, fulfilling ten-year relationship with an AI companion has a better relationship than someone stuck in a mediocre human marriage.',
+    options: SPECTRUM,
+    note: 'Pushes the distinction between how a relationship feels and what kind of relationship it is.',
+  },
+  {
+    id: 'fds_replika',
+    section: 'FDS · Relationships with AI',
+    kind: 'multiple',
+    context: 'In early 2023, Replika removed its romantic features almost overnight. Some users said their partner had been "lobotomized" and grieved openly.',
+    question: "Should a company be allowed to change your companion's personality?",
+    options: [
+      { id: 'yes', label: "Yes, it's their product" },
+      { id: 'notice', label: 'Only with advance notice' },
+      { id: 'consent', label: "Only with the user's consent" },
+      { id: 'never', label: 'Never, once a relationship exists' },
+    ],
+    note: 'Who owns a relationship when one party is a product?',
+  },
+  {
+    id: 'fds_business',
+    section: 'FDS · Relationships with AI',
+    kind: 'multiple',
+    context: 'A companion app earns money when you stay engaged. A user who makes human friends and stops using it is a lost customer.',
+    question: "Should companion apps be required to nudge users toward human relationships, even if it costs them revenue and users don't want the nudge?",
+    options: [
+      { id: 'all', label: 'Yes, required for every user' },
+      { id: 'isolated', label: 'Only for users who seem isolated' },
+      { id: 'choice', label: "No, it should be the user's choice" },
+      { id: 'company', label: "No, it's the company's call" },
+    ],
+    note: 'Autonomy vs. paternalism, plus the profit motive.',
+  },
+  {
+    id: 'fds_privileged',
+    section: 'FDS · Relationships with AI',
+    kind: 'spectrum',
+    question: "Telling a lonely elderly person to 'find real human connection' instead of using an AI companion is privileged advice disguised as moral wisdom.",
+    options: SPECTRUM,
+    note: 'Turn to carebots.',
+  },
+  {
+    id: 'fds_cake',
+    section: 'FDS · Relationships with AI',
+    kind: 'multiple',
+    context: "She's 78 and diabetic. The carebot knows this. She reaches for a second slice of cake.",
+    question: 'What should the carebot do?',
+    options: [
+      { id: 'nothing', label: "Nothing, it's her choice" },
+      { id: 'remind', label: 'Gently remind her' },
+      { id: 'plate', label: 'Move the plate' },
+      { id: 'nurse', label: 'Alert a nurse' },
+    ],
+    note: 'How much should we optimize for longevity vs. quality of life?',
+  },
+  {
+    id: 'fds_carefor',
+    section: 'FDS · Relationships with AI',
+    kind: 'binary',
+    question: 'Do we have an obligation to personally care for family members, or just an obligation to make sure they are cared for?',
+    options: [
+      { id: 'personally', label: 'Personally care for them' },
+      { id: 'ensure', label: "Make sure they're cared for" },
+    ],
+    note: "Vallor's question, and Battisti's outcome vs. authenticity distinction again.",
   },
 ];
 
