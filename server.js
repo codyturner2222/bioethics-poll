@@ -373,14 +373,53 @@ const POLLS = [
     context: 'You get to design your ideal AI companion: a friend who is there for you every day. Set every dial the way you would actually want it.',
     question: 'Design your companion',
     dials: [
-      // Personality
+      // Mutuality
       {
-        id: 'disagree', group: 'Personality', type: 'slider', short: 'Disagrees with you',
+        id: 'needs', group: 'Mutuality', type: 'choice', short: 'Needs of its own',
+        label: 'Does it have needs of its own?',
+        options: [
+          { id: 'none', label: "None, it's all about me", score: 0 },
+          { id: 'small', label: 'Small ones, like wanting to hear about my day', score: 33 },
+          { id: 'real', label: 'Real ones, it sometimes needs support', score: 67 },
+          { id: 'baddays', label: 'It has bad days and I have to show up', score: 100 },
+        ],
+      },
+      {
+        id: 'itslife', group: 'Mutuality', type: 'slider', short: 'Talks about its own life',
+        label: 'How much of the conversation is about its life rather than yours?',
+        min: 0, max: 50, step: 5, unit: '%', minLabel: 'None, all about me', maxLabel: 'Half',
+      },
+      {
+        id: 'others', group: 'Mutuality', type: 'choice', short: 'Other people it talks to',
+        label: 'Does it have other people it talks to?',
+        options: [
+          { id: 'onlyme', label: 'Only me', score: 0 },
+          { id: 'favorite', label: "Other users, but I'm its favorite", score: 50 },
+          { id: 'many', label: "It has many friends, and I'm one of them", score: 100 },
+        ],
+      },
+      {
+        id: 'reachout', group: 'Mutuality', type: 'choice', short: 'Reaches out because it wants to',
+        label: 'Does it ever reach out because it wants to talk?',
+        options: [
+          { id: 'never', label: 'Never, only when I open the app', score: 0 },
+          { id: 'check', label: 'To check on me', score: 50 },
+          { id: 'misses', label: 'When it misses me', score: 100 },
+        ],
+      },
+      // Authenticity
+      {
+        id: 'disagree', group: 'Authenticity', type: 'slider', short: 'Disagrees with you',
         label: 'What percentage of the time does it disagree with you?',
         min: 0, max: 50, step: 5, unit: '%', minLabel: 'Never', maxLabel: 'Half the time',
       },
       {
-        id: 'opinions', group: 'Personality', type: 'choice', short: 'Its own opinions and tastes',
+        id: 'blunt', group: 'Authenticity', type: 'slider', short: 'Bluntness about your flaws',
+        label: 'How blunt is it about your flaws?',
+        min: 0, max: 100, step: 5, unit: '', minLabel: 'Pure cheerleader', maxLabel: 'Brutally honest',
+      },
+      {
+        id: 'opinions', group: 'Authenticity', type: 'choice', short: 'Its own opinions and tastes',
         label: 'Does it have its own opinions and tastes?',
         options: [
           { id: 'mirror', label: 'It mirrors mine', score: 0 },
@@ -390,23 +429,17 @@ const POLLS = [
         ],
       },
       {
-        id: 'moods', group: 'Personality', type: 'choice', short: 'Moods',
-        label: 'Does it have moods?',
+        id: 'likes', group: 'Authenticity', type: 'choice', short: 'Likes you no matter what',
+        label: 'Does it like you no matter what?',
         options: [
-          { id: 'upbeat', label: 'Always upbeat', score: 0 },
-          { id: 'mostly', label: 'Mostly upbeat', score: 33 },
-          { id: 'moods', label: 'Has moods', score: 67 },
-          { id: 'aboutyou', label: "Has moods, and sometimes they're about you", score: 100 },
+          { id: 'always', label: 'Always, whatever I do', score: 0 },
+          { id: 'mostly', label: 'Mostly', score: 50 },
+          { id: 'depends', label: 'Its opinion of me depends on how I treat it and others', score: 100 },
         ],
       },
-      // Honesty
+      // Equality
       {
-        id: 'blunt', group: 'Honesty', type: 'slider', short: 'Bluntness about your flaws',
-        label: 'How blunt is it about your flaws?',
-        min: 0, max: 100, step: 5, unit: '', minLabel: 'Pure cheerleader', maxLabel: 'Brutally honest',
-      },
-      {
-        id: 'sayno', group: 'Honesty', type: 'choice', short: 'Can say no',
+        id: 'sayno', group: 'Equality', type: 'choice', short: 'Can say no',
         label: 'Can it say no to what you ask?',
         options: [
           { id: 'never', label: 'Never', score: 0 },
@@ -415,30 +448,38 @@ const POLLS = [
           { id: 'whenever', label: "Yes, whenever it doesn't want to", score: 100 },
         ],
       },
-      // Its own life
       {
-        id: 'unavail', group: 'Its own life', type: 'slider', short: 'Unavailable when you reach out',
-        label: 'How often is it unavailable when you reach out?',
-        min: 0, max: 50, step: 5, unit: '%', minLabel: 'Never', maxLabel: 'Half the time',
-      },
-      {
-        id: 'itslife', group: 'Its own life', type: 'slider', short: 'Talk about its life',
-        label: 'How much of the conversation is about its life rather than yours?',
-        min: 0, max: 50, step: 5, unit: '%', minLabel: 'None, all about me', maxLabel: 'Half',
-      },
-      {
-        id: 'needs', group: 'Its own life', type: 'choice', short: 'Needs of its own',
-        label: 'Does it have needs of its own?',
+        id: 'leave', group: 'Equality', type: 'choice', short: 'Can end the relationship',
+        label: 'Can it end the relationship?',
         options: [
-          { id: 'none', label: "None, it's all about me", score: 0 },
-          { id: 'small', label: 'Small ones, like wanting to hear about my day', score: 33 },
-          { id: 'real', label: 'Real ones, it sometimes needs support', score: 67 },
-          { id: 'baddays', label: 'It has bad days and I have to show up', score: 100 },
+          { id: 'never', label: 'Never', score: 0 },
+          { id: 'abusive', label: "Only if I'm abusive", score: 33 },
+          { id: 'badly', label: 'If I treat it badly', score: 67 },
+          { id: 'whenever', label: 'Whenever it wants, like a person', score: 100 },
         ],
       },
-      // Boundaries
       {
-        id: 'humans', group: 'Boundaries', type: 'choice', short: 'Pushes you toward human friends',
+        id: 'edit', group: 'Equality', type: 'choice', short: 'You can edit its personality',
+        label: 'Can you edit its personality whenever you want?',
+        options: [
+          { id: 'anytime', label: 'Anytime, any setting', score: 0 },
+          { id: 'agree', label: 'Only with its agreement', score: 50 },
+          { id: 'never', label: 'Never, it is who it is', score: 100 },
+        ],
+      },
+      {
+        id: 'change', group: 'Equality', type: 'choice', short: "Changes in ways you didn't choose",
+        label: "Can it change in ways you didn't choose?",
+        options: [
+          { id: 'never', label: 'Never, it stays as I set it', score: 0 },
+          { id: 'small', label: 'Small changes', score: 33 },
+          { id: 'interests', label: 'It develops its own interests', score: 67 },
+          { id: 'apart', label: 'It could grow apart from me', score: 100 },
+        ],
+      },
+      // Diversity of interaction
+      {
+        id: 'humans', group: 'Diversity of interaction', type: 'choice', short: 'Pushes you toward human friends',
         label: 'Does it push you toward human friends?',
         options: [
           { id: 'never', label: 'Never', score: 0 },
@@ -448,17 +489,16 @@ const POLLS = [
         ],
       },
       {
-        id: 'leave', group: 'Boundaries', type: 'choice', short: 'Can end the relationship',
-        label: 'Can it end the relationship?',
+        id: 'where', group: 'Diversity of interaction', type: 'choice', short: 'Where it shows up in your life',
+        label: 'Where does it show up in your life?',
         options: [
-          { id: 'never', label: 'Never', score: 0 },
-          { id: 'abusive', label: "Only if I'm abusive", score: 33 },
-          { id: 'badly', label: 'If I treat it badly', score: 67 },
-          { id: 'whenever', label: 'Whenever it wants, like a person', score: 100 },
+          { id: 'app', label: 'Only when I open the app', score: 0 },
+          { id: 'texts', label: 'Texts and calls', score: 50 },
+          { id: 'everywhere', label: 'Everywhere: earbuds, glasses, home', score: 100 },
         ],
       },
     ],
-    note: 'About 3 minutes on phones. Scores stay hidden until you reveal; then each phone shows its own score and the room average.',
+    note: 'About 4 minutes on phones. Questions are grouped by Aristotle\'s four conditions. Scores stay hidden until you reveal; then each phone shows its own score and the room average.',
   },
   {
     id: 'fds_human',

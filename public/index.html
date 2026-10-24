@@ -210,6 +210,20 @@
   .design-sum.compact .ds-big { font-size: 44px; }
   .design-sum.compact .ds-row { font-size: 14px; padding: 2px 0; grid-template-columns: 250px 1fr 110px; }
   .mini-cap { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .ds-split { grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  .ds-conds { display: flex; flex-direction: column; gap: 10px; }
+  .ds-cond-h { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+  .ds-cond { display: grid; grid-template-columns: 250px 1fr 44px; gap: 12px; align-items: center; font-size: 20px; font-weight: 600; }
+  .ds-cond b { text-align: right; font-variant-numeric: tabular-nums; }
+  .ds-ctrack { height: 16px; background: var(--panel2); border-radius: 6px; overflow: hidden; }
+  .ds-ctrack div { height: 100%; border-radius: 6px; }
+  .ds-right .ds-ext { margin-top: 18px; font-size: 17px; }
+  .ds-rows { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .design-sum.compact .ds-compact-top { display: grid; grid-template-columns: auto 1fr auto; gap: 30px; align-items: center; }
+  .design-sum.compact .ds-compact-top .ds-ext { flex-direction: column; gap: 8px; }
+  .design-sum.compact .ds-cond { font-size: 15px; grid-template-columns: 180px 1fr 34px; }
+  .ctrl.slim { padding: 10px 14px; font-size: 15px; }
+  .design-sum.compact .ds-conds { gap: 6px; }
   .ds-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; grid-auto-flow: column; grid-template-rows: repeat(5, auto); }
   .design-sum.compact .ds-cols .ds-row { grid-template-columns: 1fr 1fr 70px; }
   .design-sum.compact .ds-fbar { width: 34px; }
@@ -297,6 +311,8 @@
     <button class="ctrl primary" id="cNext">Start ▶</button>
     <button class="ctrl reveal" id="cReveal">Reveal results</button>
     <button class="ctrl" id="cReset">Reset votes</button>
+    <button class="ctrl slim hidden" id="cShowComp">Show companion</button>
+    <button class="ctrl slim hidden" id="cShowDials">Show all questions</button>
     <div class="grow"></div>
     <div>
       <div class="nowplaying" id="cNow">—</div>
@@ -504,7 +520,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(
 function renderHostIdle() {
   $('hSection').textContent = 'Ready';
   $('hQuestion').innerHTML = 'Click <b>☰ Questions</b> to pick any question in any order — or <b>Start ▶</b> to begin with the first.';
-  ['hStageLabel','hContext','hVotingNote','hBars','hDrift','hDesign'].forEach((id)=>$(id).classList.add('hidden'));
+  ['hStageLabel','hContext','hVotingNote','hBars','hDrift','hDesign','cShowComp','cShowDials'].forEach((id)=>$(id).classList.add('hidden'));
   $('cNow').textContent = POLLS.length + ' questions loaded';
   $('cNote').textContent = '';
   $('cNext').textContent = 'Start ▶';
@@ -520,6 +536,10 @@ socket.on('host:state', (st) => {
   if (st.activeIndex < 0) { renderHostIdle(); return; }
   renderHostPoll(POLLS[st.activeIndex], st);
 });
+
+let showComp = false, showDials = false, lastDesignPollId = null, lastHostPoll = null, lastHostState = null;
+$('cShowComp').onclick = () => { showComp = !showComp; if (lastHostPoll) renderHostPoll(lastHostPoll, lastHostState); };
+$('cShowDials').onclick = () => { showDials = !showDials; if (lastHostPoll) renderHostPoll(lastHostPoll, lastHostState); };
 
 function renderHostPoll(poll, st) {
   $('cNext').textContent = hostIndex >= POLLS.length - 1 ? 'End' : 'Next ▶';
@@ -541,6 +561,15 @@ function renderHostPoll(poll, st) {
 
   const isSummary = poll.kind === 'ladder-summary';
 
+  // Detail toggles reset whenever the presenter moves to another question.
+  if (lastDesignPollId !== poll.id) { lastDesignPollId = poll.id; showComp = false; showDials = false; }
+  lastHostPoll = poll; lastHostState = st;
+  const designShown = poll.showDesign || (poll.kind === 'design' && st.revealed);
+  $('cShowComp').classList.toggle('hidden', !designShown);
+  $('cShowDials').classList.toggle('hidden', !(poll.kind === 'design' && st.revealed));
+  $('cShowComp').textContent = showComp ? 'Hide companion' : 'Show companion';
+  $('cShowDials').textContent = showDials ? 'Hide all questions' : 'Show all questions';
+
   // Companion summary card on the follow-up questions (always visible there).
   if (poll.showDesign) {
     const dp = POLLS.find((p) => p.id === poll.showDesign);
@@ -559,7 +588,8 @@ function renderHostPoll(poll, st) {
       $('hVotingNote').classList.add('hidden');
       $('hContext').classList.add('hidden');
       renderDesignSummary(poll, st.tally, false);
-      renderDesignDials(poll, st.tally);
+      if (showDials) renderDesignDials(poll, st.tally);
+      else $('hBars').classList.add('hidden');
     }
     return;
   }
@@ -610,6 +640,16 @@ function dialPick(d, dt) {
   return m.tie ? 'Split vote' : (m.opt ? m.opt.label + ' (' + pct(m.count, m.total) + '%)' : '—');
 }
 
+function groupFriction(poll, tally) {
+  const groups = [];
+  poll.dials.forEach((d) => {
+    let g = groups.find((x) => x.name === d.group);
+    if (!g) { g = { name: d.group, sum: 0, n: 0 }; groups.push(g); }
+    g.sum += tally.dials[d.id].fric; g.n++;
+  });
+  return groups.map((g) => ({ name: g.name, fric: Math.round(g.sum / g.n) }));
+}
+
 function renderDesignSummary(poll, tally, compact) {
   const wrap = $('hDesign');
   wrap.classList.remove('hidden');
@@ -618,23 +658,23 @@ function renderDesignSummary(poll, tally, compact) {
     wrap.innerHTML = '<h3>The companion this room built</h3><div class="ds-foot">No designs locked in yet.</div>';
     return;
   }
-  // Most / least friction kept
   let hi = null, lo = null;
   poll.dials.forEach((d) => {
     const f = tally.dials[d.id].fric;
     if (!hi || f > tally.dials[hi.id].fric) hi = d;
     if (!lo || f < tally.dials[lo.id].fric) lo = d;
   });
-  let rows = '';
-  let lastGroup = null;
-  poll.dials.forEach((d) => {
-    const dt = tally.dials[d.id];
-    if (!compact && d.group !== lastGroup) { lastGroup = d.group; rows += '<div class="ds-group">' + d.group + '</div>'; }
-    rows += '<div class="ds-row"><span>' + d.short + '</span>' +
-      '<span class="ds-pick" style="color:' + fricColor(dt.fric) + '">' + dialPick(d, dt) + '</span>' +
-      '<span class="ds-fric"><span class="ds-fbar"><span style="width:' + dt.fric + '%;background:' + fricColor(dt.fric) + '"></span></span>' + dt.fric + '</span></div>';
+  const index =
+    '<div class="ds-index"><div class="ds-big" style="color:' + fricColor(tally.mean) + '">' + tally.mean + '<small>/100</small></div>' +
+    '<div class="ds-idx-lbl">Room Friction Index<br><span>' + tally.total + ' companions designed</span></div></div>';
+  const extremes =
+    '<div class="ds-ext"><div><span class="lbl">Most friction kept</span><b style="color:var(--good)">' + hi.short + '</b> · ' + tally.dials[hi.id].fric + '</div>' +
+    '<div><span class="lbl">Least friction kept</span><b style="color:var(--warn)">' + lo.short + '</b> · ' + tally.dials[lo.id].fric + '</div></div>';
+  let conds = '<div class="ds-conds"><div class="ds-cond-h">By Aristotle\'s conditions</div>';
+  groupFriction(poll, tally).forEach((g) => {
+    conds += '<div class="ds-cond"><span>' + g.name + '</span><div class="ds-ctrack"><div style="width:' + g.fric + '%;background:' + fricColor(g.fric) + '"></div></div><b>' + g.fric + '</b></div>';
   });
-  // Histogram of individual companion scores (10 bins)
+  conds += '</div>';
   const bins = new Array(10).fill(0);
   tally.scores.forEach((sc) => bins[Math.min(9, Math.floor(sc / 10))]++);
   const maxBin = Math.max(1, ...bins);
@@ -642,22 +682,26 @@ function renderDesignSummary(poll, tally, compact) {
   bins.forEach((n, i) => {
     hist += '<div class="hcol"><div class="hbar" style="height:' + Math.round((n / maxBin) * 100) + '%;background:' + fricColor(i * 10 + 5) + '">' + (n ? '<span>' + n + '</span>' : '') + '</div><div class="hlab">' + (i * 10) + '</div></div>';
   });
-  hist += '</div>';
+  hist += '</div><div class="hcap">Each student\'s companion score</div>';
 
-  const index =
-    '<div class="ds-index"><div class="ds-big" style="color:' + fricColor(tally.mean) + '">' + tally.mean + '<small>/100</small></div>' +
-    '<div class="ds-idx-lbl">Room Friction Index<br><span>' + tally.total + ' companions designed</span></div></div>';
-  const extremes =
-    '<div class="ds-ext"><div><span class="lbl">Most friction kept</span><b style="color:var(--good)">' + hi.short + '</b> · ' + tally.dials[hi.id].fric + '</div>' +
-    '<div><span class="lbl">Least friction kept</span><b style="color:var(--warn)">' + lo.short + '</b> · ' + tally.dials[lo.id].fric + '</div></div>';
-
+  let rows = '';
+  if (showComp) {
+    let lastGroup = null;
+    rows = '<div class="ds-rows"><h3>The companion this room built <span class="ds-colhead">friction</span></h3>';
+    poll.dials.forEach((d) => {
+      const dt = tally.dials[d.id];
+      if (d.group !== lastGroup) { lastGroup = d.group; rows += '<div class="ds-group">' + d.group + '</div>'; }
+      rows += '<div class="ds-row"><span>' + d.short + '</span>' +
+        '<span class="ds-pick" style="color:' + fricColor(dt.fric) + '">' + dialPick(d, dt) + '</span>' +
+        '<span class="ds-fric"><span class="ds-fbar"><span style="width:' + dt.fric + '%;background:' + fricColor(dt.fric) + '"></span></span>' + dt.fric + '</span></div>';
+    });
+    rows += '</div>';
+  }
   if (compact) {
-    wrap.innerHTML = '<div class="ds-compact-top">' + index + extremes + '</div>' +
-      '<h3 style="margin-top:10px">The companion this room built</h3><div class="ds-cols">' + rows + '</div>';
+    wrap.innerHTML = '<div class="ds-compact-top">' + index + conds + extremes + '</div>' + rows;
   } else {
-    wrap.innerHTML =
-      '<div class="ds-split"><div class="ds-left">' + index + hist + '<div class="hcap">Each student\'s companion score</div>' + extremes + '</div>' +
-      '<div class="ds-right"><h3>The companion this room built <span class="ds-colhead">friction</span></h3>' + rows + '</div></div>';
+    wrap.innerHTML = '<div class="ds-split"><div class="ds-left">' + index + hist + '</div>' +
+      '<div class="ds-right">' + conds + extremes + '</div></div>' + rows;
   }
 }
 
