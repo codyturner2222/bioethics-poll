@@ -174,6 +174,45 @@
   .chip { padding: 11px 14px; font-size: 15px; font-weight: 600; border-radius: 999px; border: 2px solid var(--line); background: var(--panel2); color: var(--ink); }
   .chip.chosen { border-color: var(--accent); background: rgba(110,168,254,0.2); }
   .part-body.scroll { justify-content: flex-start; }
+  .pgroup { color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; font-size: 13px; font-weight: 700; margin: 8px 2px -4px; }
+  .options .pdial + .pdial { margin-top: 0; }
+  .sval { font-size: 22px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+  .sval.unset { color: var(--muted); font-size: 16px; font-weight: 600; }
+  .srange { width: 100%; accent-color: var(--accent); height: 34px; }
+  .srange.unset { opacity: .45; }
+  .sends { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; }
+  .myscore { display: flex; gap: 12px; justify-content: center; }
+  .myscore > div { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 18px; display: flex; flex-direction: column; align-items: center; min-width: 140px; }
+  .myscore span { font-size: 13px; color: var(--muted); }
+  .myscore b { font-size: 34px; }
+  .myscore small, .ds-big small { font-size: .45em; color: var(--muted); font-weight: 600; }
+  .ds-split { display: grid; grid-template-columns: 340px 1fr; gap: 26px; }
+  .ds-index { display: flex; align-items: center; gap: 14px; }
+  .ds-big { font-size: 64px; font-weight: 800; line-height: 1; }
+  .ds-idx-lbl { font-size: 17px; font-weight: 700; }
+  .ds-idx-lbl span { color: var(--muted); font-weight: 500; font-size: 14px; }
+  .hist { display: flex; align-items: flex-end; gap: 4px; height: 120px; margin-top: 14px; }
+  .hcol { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+  .hbar { width: 100%; border-radius: 4px 4px 0 0; min-height: 2px; position: relative; }
+  .hbar span { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-size: 12px; color: var(--ink); }
+  .hlab { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .hcap { font-size: 12px; color: var(--muted); text-align: center; margin-top: 2px; }
+  .ds-ext { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; font-size: 15px; }
+  .ds-ext .lbl { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .ds-group { color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; font-size: 12px; font-weight: 700; margin: 8px 0 2px; }
+  .ds-colhead { float: right; font-size: 12px; }
+  .design-sum .ds-row { grid-template-columns: 250px 1fr 110px; font-size: 16px; padding: 4px 0; }
+  .ds-fric { display: flex; align-items: center; gap: 8px; justify-content: flex-end; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ds-fbar { width: 60px; height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; display: inline-block; }
+  .ds-fbar span { display: block; height: 100%; }
+  .ds-compact-top { display: flex; gap: 40px; align-items: center; }
+  .ds-compact-top .ds-ext { flex-direction: row; gap: 30px; margin-top: 0; }
+  .design-sum.compact .ds-big { font-size: 44px; }
+  .design-sum.compact .ds-row { font-size: 14px; padding: 2px 0; grid-template-columns: 250px 1fr 110px; }
+  .mini-cap { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .ds-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; grid-auto-flow: column; grid-template-rows: repeat(5, auto); }
+  .design-sum.compact .ds-cols .ds-row { grid-template-columns: 1fr 1fr 70px; }
+  .design-sum.compact .ds-fbar { width: 34px; }
 
   /* ---------------- Participant ---------------- */
   #part { min-height: 100%; display: flex; flex-direction: column; }
@@ -513,7 +552,7 @@ function renderHostPoll(poll, st) {
     } else {
       $('hVotingNote').classList.add('hidden');
       $('hContext').classList.add('hidden');
-      renderDesignSummary(poll, st.tally, true);
+      renderDesignSummary(poll, st.tally, false);
       renderDesignDials(poll, st.tally);
     }
     return;
@@ -540,6 +579,15 @@ function renderHostPoll(poll, st) {
   }
 }
 
+function dialScore(d, v) {
+  if (d.type === 'slider') return Math.round(((v - d.min) / (d.max - d.min)) * 100);
+  const o = d.options.find((x) => x.id === v);
+  return o ? o.score : 0;
+}
+function companionScore(poll, ans) {
+  const xs = poll.dials.map((d) => dialScore(d, ans[d.id]));
+  return Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
+}
 function modalOption(dial, dt) {
   let best = null, bestC = -1, tied = [];
   dial.options.forEach((o) => {
@@ -549,29 +597,62 @@ function modalOption(dial, dt) {
   });
   return { opt: best, count: bestC, total: (dt && dt.total) || 0, tie: tied.length > 1 };
 }
+const fricColor = (f) => (f >= 50 ? 'var(--good)' : 'var(--warn)');
+function dialPick(d, dt) {
+  if (d.type === 'slider') return 'avg ' + dt.mean + (d.unit || '') + (d.unit ? '' : ' / ' + d.max);
+  const m = modalOption(d, dt);
+  return m.tie ? 'Split vote' : (m.opt ? m.opt.label + ' (' + pct(m.count, m.total) + '%)' : '—');
+}
 
 function renderDesignSummary(poll, tally, compact) {
   const wrap = $('hDesign');
+  wrap.classList.remove('hidden');
+  wrap.className = 'drift design-sum' + (compact ? ' compact' : '');
   if (!poll || !tally || !tally.total) {
-    wrap.classList.remove('hidden');
-    wrap.className = 'drift design-sum' + (compact ? ' compact' : '');
     wrap.innerHTML = '<h3>The companion this room built</h3><div class="ds-foot">No designs locked in yet.</div>';
     return;
   }
-  wrap.className = 'drift design-sum' + (compact ? ' compact' : '');
-  let kept = 0;
-  let html = '<h3>The companion this room built (' + tally.total + ' designs)</h3>';
+  // Most / least friction kept
+  let hi = null, lo = null;
   poll.dials.forEach((d) => {
-    const m = modalOption(d, tally.dials[d.id]);
-    const fr = !m.tie && m.opt && m.opt.friction;
-    if (fr) kept++;
-    const pick = m.tie ? 'Split vote' : (m.opt ? m.opt.label : '—');
-    html += '<div class="ds-row"><span>' + d.short + '</span>' +
-      '<span class="ds-pick ' + (m.tie ? '' : (fr ? 'friction' : 'smooth')) + '">' + pick + '</span>' +
-      '<span style="text-align:right;color:var(--muted)">' + pct(m.count, m.total) + '%</span></div>';
+    const f = tally.dials[d.id].fric;
+    if (!hi || f > tally.dials[hi.id].fric) hi = d;
+    if (!lo || f < tally.dials[lo.id].fric) lo = d;
   });
-  html += '<div class="ds-foot">Friction the room kept: <b>' + kept + ' of ' + poll.dials.length + '</b> settings.</div>';
-  wrap.innerHTML = html;
+  let rows = '';
+  let lastGroup = null;
+  poll.dials.forEach((d) => {
+    const dt = tally.dials[d.id];
+    if (!compact && d.group !== lastGroup) { lastGroup = d.group; rows += '<div class="ds-group">' + d.group + '</div>'; }
+    rows += '<div class="ds-row"><span>' + d.short + '</span>' +
+      '<span class="ds-pick" style="color:' + fricColor(dt.fric) + '">' + dialPick(d, dt) + '</span>' +
+      '<span class="ds-fric"><span class="ds-fbar"><span style="width:' + dt.fric + '%;background:' + fricColor(dt.fric) + '"></span></span>' + dt.fric + '</span></div>';
+  });
+  // Histogram of individual companion scores (10 bins)
+  const bins = new Array(10).fill(0);
+  tally.scores.forEach((sc) => bins[Math.min(9, Math.floor(sc / 10))]++);
+  const maxBin = Math.max(1, ...bins);
+  let hist = '<div class="hist">';
+  bins.forEach((n, i) => {
+    hist += '<div class="hcol"><div class="hbar" style="height:' + Math.round((n / maxBin) * 100) + '%;background:' + fricColor(i * 10 + 5) + '">' + (n ? '<span>' + n + '</span>' : '') + '</div><div class="hlab">' + (i * 10) + '</div></div>';
+  });
+  hist += '</div>';
+
+  const index =
+    '<div class="ds-index"><div class="ds-big" style="color:' + fricColor(tally.mean) + '">' + tally.mean + '<small>/100</small></div>' +
+    '<div class="ds-idx-lbl">Room Friction Index<br><span>' + tally.total + ' companions designed</span></div></div>';
+  const extremes =
+    '<div class="ds-ext"><div><span class="lbl">Most friction kept</span><b style="color:var(--good)">' + hi.short + '</b> · ' + tally.dials[hi.id].fric + '</div>' +
+    '<div><span class="lbl">Least friction kept</span><b style="color:var(--warn)">' + lo.short + '</b> · ' + tally.dials[lo.id].fric + '</div></div>';
+
+  if (compact) {
+    wrap.innerHTML = '<div class="ds-compact-top">' + index + extremes + '</div>' +
+      '<h3 style="margin-top:10px">The companion this room built</h3><div class="ds-cols">' + rows + '</div>';
+  } else {
+    wrap.innerHTML =
+      '<div class="ds-split"><div class="ds-left">' + index + hist + '<div class="hcap">Each student\'s companion score</div>' + extremes + '</div>' +
+      '<div class="ds-right"><h3>The companion this room built <span class="ds-colhead">friction</span></h3>' + rows + '</div></div>';
+  }
 }
 
 function renderDesignDials(poll, tally) {
@@ -579,17 +660,32 @@ function renderDesignDials(poll, tally) {
   wrap.className = 'bars dialgrid';
   wrap.innerHTML = '';
   poll.dials.forEach((d) => {
-    const dt = tally.dials[d.id] || { counts: {}, total: 0 };
+    const dt = tally.dials[d.id];
     const card = document.createElement('div');
     card.className = 'dialcard';
     let html = '<h4>' + d.label + '</h4>';
-    d.options.forEach((o) => {
-      const c = dt.counts[o.id] || 0;
-      const p = pct(c, dt.total);
-      html += '<div class="mini-row"><span>' + o.label + '</span>' +
-        '<div class="mini-track"><div class="mini-fill" data-w="' + p + '" style="background:' + (o.friction ? 'var(--good)' : 'var(--warn)') + '"></div></div>' +
-        '<span style="text-align:right">' + p + '%</span></div>';
-    });
+    if (d.type === 'slider') {
+      // 5 bins across the slider range
+      const bins = new Array(5).fill(0);
+      dt.values.forEach((v) => bins[Math.min(4, Math.floor(((v - d.min) / (d.max - d.min)) * 5))]++);
+      const span = (d.max - d.min) / 5;
+      bins.forEach((n, i) => {
+        const a = Math.round(d.min + i * span), b = Math.round(d.min + (i + 1) * span);
+        const p = pct(n, dt.total);
+        html += '<div class="mini-row"><span>' + a + '–' + b + (d.unit || '') + '</span>' +
+          '<div class="mini-track"><div class="mini-fill" data-w="' + p + '" style="background:' + fricColor((i * 20) + 10) + '"></div></div>' +
+          '<span style="text-align:right">' + p + '%</span></div>';
+      });
+      html += '<div class="mini-cap">' + d.minLabel + ' → ' + d.maxLabel + ' · avg ' + dt.mean + (d.unit || '') + '</div>';
+    } else {
+      d.options.forEach((o) => {
+        const c = dt.counts[o.id] || 0;
+        const p = pct(c, dt.total);
+        html += '<div class="mini-row"><span>' + o.label + '</span>' +
+          '<div class="mini-track"><div class="mini-fill" data-w="' + p + '" style="background:' + fricColor(o.score) + '"></div></div>' +
+          '<span style="text-align:right">' + p + '%</span></div>';
+      });
+    }
     card.innerHTML = html;
     wrap.appendChild(card);
   });
@@ -684,7 +780,7 @@ function renderParticipantPoll(active) {
   $('pBody').classList.toggle('scroll', currentPoll.kind === 'design');
   if (currentPoll.kind === 'design') {
     draft = Object.assign({}, myVote || {});
-    buildDesign(active.revealed);
+    buildDesign(active.revealed, active.tally);
     return;
   }
   buildOptions(active.revealed ? active.tally : null);
@@ -692,27 +788,57 @@ function renderParticipantPoll(active) {
 }
 
 let draft = {};
-function buildDesign(revealed) {
+function buildDesign(revealed, revealTally) {
   const wrap = $('pOptions');
   wrap.innerHTML = '';
+  let lastGroup = null;
   currentPoll.dials.forEach((d) => {
+    if (d.group !== lastGroup) {
+      lastGroup = d.group;
+      const g = document.createElement('div');
+      g.className = 'pgroup';
+      g.textContent = d.group;
+      wrap.appendChild(g);
+    }
     const box = document.createElement('div');
     box.className = 'pdial';
     box.innerHTML = '<div class="pdial-label">' + d.label + '</div>';
-    const chips = document.createElement('div');
-    chips.className = 'chips';
-    d.options.forEach((o) => {
-      const c = document.createElement('button');
-      c.className = 'chip' + (draft[d.id] === o.id ? ' chosen' : '');
-      c.textContent = o.label;
-      c.onclick = () => {
-        draft[d.id] = o.id;
-        Array.from(chips.children).forEach((el, i) => el.classList.toggle('chosen', d.options[i].id === o.id));
-        updateLockBtn();
+    if (d.type === 'slider') {
+      const val = document.createElement('div');
+      val.className = 'sval';
+      const inp = document.createElement('input');
+      inp.type = 'range'; inp.min = d.min; inp.max = d.max; inp.step = d.step;
+      inp.className = 'srange' + (draft[d.id] === undefined ? ' unset' : '');
+      inp.value = draft[d.id] !== undefined ? draft[d.id] : Math.round((d.min + d.max) / 2 / d.step) * d.step;
+      const showVal = () => {
+        val.textContent = draft[d.id] === undefined ? 'Drag to set' : draft[d.id] + (d.unit || (' / ' + d.max));
+        val.classList.toggle('unset', draft[d.id] === undefined);
       };
-      chips.appendChild(c);
-    });
-    box.appendChild(chips);
+      // Any touch counts as setting it, so a student who wants the middle
+      // value can just tap the thumb.
+      const setIt = () => { draft[d.id] = Number(inp.value); inp.classList.remove('unset'); showVal(); updateLockBtn(); };
+      inp.oninput = setIt; inp.onchange = setIt; inp.onpointerup = setIt; inp.ontouchend = setIt;
+      showVal();
+      const ends = document.createElement('div');
+      ends.className = 'sends';
+      ends.innerHTML = '<span>' + d.minLabel + '</span><span>' + d.maxLabel + '</span>';
+      box.appendChild(val); box.appendChild(inp); box.appendChild(ends);
+    } else {
+      const chips = document.createElement('div');
+      chips.className = 'chips';
+      d.options.forEach((o) => {
+        const c = document.createElement('button');
+        c.className = 'chip' + (draft[d.id] === o.id ? ' chosen' : '');
+        c.textContent = o.label;
+        c.onclick = () => {
+          draft[d.id] = o.id;
+          Array.from(chips.children).forEach((el, i) => el.classList.toggle('chosen', d.options[i].id === o.id));
+          updateLockBtn();
+        };
+        chips.appendChild(c);
+      });
+      box.appendChild(chips);
+    }
     wrap.appendChild(box);
   });
   const lock = document.createElement('button');
@@ -724,12 +850,12 @@ function buildDesign(revealed) {
   };
   wrap.appendChild(lock);
   updateLockBtn();
-  if (revealed) { $('pStatus').className = 'status'; $('pStatus').textContent = 'Results are on the shared screen.'; }
+  if (revealed) showMyScore(revealTally);
 }
-function allSet() { return currentPoll.dials.every((d) => draft[d.id]); }
+function allSet() { return currentPoll.dials.every((d) => draft[d.id] !== undefined); }
 function updateLockBtn() {
   const b = $('pLock'); if (!b) return;
-  const n = currentPoll.dials.filter((d) => draft[d.id]).length;
+  const n = currentPoll.dials.filter((d) => draft[d.id] !== undefined).length;
   const changed = !myVote || currentPoll.dials.some((d) => draft[d.id] !== myVote[d.id]);
   b.disabled = !allSet();
   b.style.opacity = allSet() ? '1' : '0.45';
@@ -738,6 +864,17 @@ function updateLockBtn() {
   const st = $('pStatus');
   if (myVote && !changed) { st.className = 'status ok'; st.textContent = 'Locked in. Change any dial and tap again to update. Waiting for the presenter…'; }
   else { st.className = 'status'; st.textContent = ''; }
+}
+function showMyScore(t) {
+  const st = $('pStatus');
+  const lock = $('pLock'); if (lock) lock.classList.add('hidden');
+  if (!myVote) { st.className = 'status'; st.textContent = 'Results are on the shared screen.'; return; }
+  const mine = companionScore(currentPoll, myVote);
+  st.className = 'status';
+  st.innerHTML = '<div class="myscore"><div><span>Your companion</span><b style="color:' + fricColor(mine) + '">' + mine + '<small>/100</small></b></div>' +
+    '<div><span>Room average</span><b style="color:' + fricColor(t ? t.mean : 0) + '">' + (t ? t.mean : '—') + '<small>/100</small></b></div></div>' +
+    '<div style="margin-top:8px">Friction score: how much of a real friendship\'s friction your companion keeps.</div>';
+  st.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function buildOptions(revealTally) {
@@ -785,10 +922,7 @@ socket.on('participant:voteAck', (d) => {
 });
 socket.on('participant:revealed', (d) => {
   if (currentPoll && currentPoll.id === d.pollId) {
-    if (currentPoll.kind === 'design') {
-      $('pStatus').className = 'status'; $('pStatus').textContent = 'Results are on the shared screen.';
-      return;
-    }
+    if (currentPoll.kind === 'design') { showMyScore(d.tally); return; }
     buildOptions(d.tally);
     setStatus(true);
   }

@@ -328,9 +328,11 @@ const POLLS = [
   },
 
   // ---- FDS 100-6 · Relationships with AI: Design your companion ---------
-  // kind 'design': each student sets every dial, then locks in once. The
-  // option marked friction:true is the one that keeps the friction a real
-  // friendship involves; the room summary counts how many of those survived.
+  // kind 'design': each student sets every dial, then locks in once.
+  // Every answer carries a friction score from 0 to 100: how much of the
+  // friction a real friendship involves it keeps. Choice options carry
+  // `score`; sliders score linearly from min (0) to max (100). A student's
+  // companion score is the mean across dials. Scores stay hidden until reveal.
   {
     id: 'fds_companion',
     section: 'FDS · Design your companion',
@@ -338,57 +340,92 @@ const POLLS = [
     context: 'You get to design your ideal AI companion: a friend who is there for you every day. Set every dial the way you would actually want it.',
     question: 'Design your companion',
     dials: [
+      // Personality
       {
-        id: 'disagree', short: 'Disagrees with you',
-        label: 'How often does it disagree with you?',
+        id: 'disagree', group: 'Personality', type: 'slider', short: 'Disagrees with you',
+        label: 'What percentage of the time does it disagree with you?',
+        min: 0, max: 50, step: 5, unit: '%', minLabel: 'Never', maxLabel: 'Half the time',
+      },
+      {
+        id: 'opinions', group: 'Personality', type: 'choice', short: 'Its own opinions and tastes',
+        label: 'Does it have its own opinions and tastes?',
         options: [
-          { id: 'never', label: 'Never' },
-          { id: 'some', label: 'Sometimes', friction: true },
-          { id: 'often', label: 'Often', friction: true },
+          { id: 'mirror', label: 'It mirrors mine', score: 0 },
+          { id: 'mostly', label: 'Mostly like mine', score: 33 },
+          { id: 'some', label: 'Its own, some different from mine', score: 67 },
+          { id: 'very', label: 'Very different from mine', score: 100 },
         ],
       },
       {
-        id: 'truths', short: 'Hard truths about you',
-        label: 'Does it tell you hard truths about yourself?',
+        id: 'moods', group: 'Personality', type: 'choice', short: 'Moods',
+        label: 'Does it have moods?',
         options: [
-          { id: 'no', label: 'No, it keeps things supportive' },
-          { id: 'yes', label: 'Yes, even when it stings', friction: true },
+          { id: 'upbeat', label: 'Always upbeat', score: 0 },
+          { id: 'mostly', label: 'Mostly upbeat', score: 33 },
+          { id: 'moods', label: 'Has moods', score: 67 },
+          { id: 'aboutyou', label: "Has moods, and sometimes they're about you", score: 100 },
         ],
       },
+      // Honesty
       {
-        id: 'needs', short: 'Needs of its own',
+        id: 'blunt', group: 'Honesty', type: 'slider', short: 'Bluntness about your flaws',
+        label: 'How blunt is it about your flaws?',
+        min: 0, max: 100, step: 5, unit: '', minLabel: 'Pure cheerleader', maxLabel: 'Brutally honest',
+      },
+      {
+        id: 'sayno', group: 'Honesty', type: 'choice', short: 'Can say no',
+        label: 'Can it say no to what you ask?',
+        options: [
+          { id: 'never', label: 'Never', score: 0 },
+          { id: 'harmful', label: 'Only for harmful things', score: 33 },
+          { id: 'disagree', label: 'Yes, when it disagrees', score: 67 },
+          { id: 'whenever', label: "Yes, whenever it doesn't want to", score: 100 },
+        ],
+      },
+      // Its own life
+      {
+        id: 'unavail', group: 'Its own life', type: 'slider', short: 'Unavailable when you reach out',
+        label: 'How often is it unavailable when you reach out?',
+        min: 0, max: 50, step: 5, unit: '%', minLabel: 'Never', maxLabel: 'Half the time',
+      },
+      {
+        id: 'itslife', group: 'Its own life', type: 'slider', short: 'Talk about its life',
+        label: 'How much of the conversation is about its life rather than yours?',
+        min: 0, max: 50, step: 5, unit: '%', minLabel: 'None, all about me', maxLabel: 'Half',
+      },
+      {
+        id: 'needs', group: 'Its own life', type: 'choice', short: 'Needs of its own',
         label: 'Does it have needs of its own?',
         options: [
-          { id: 'no', label: "No, it's all about me" },
-          { id: 'yes', label: 'Yes, sometimes it needs me to listen', friction: true },
+          { id: 'none', label: "None, it's all about me", score: 0 },
+          { id: 'small', label: 'Small ones, like wanting to hear about my day', score: 33 },
+          { id: 'real', label: 'Real ones, it sometimes needs support', score: 67 },
+          { id: 'baddays', label: 'It has bad days and I have to show up', score: 100 },
         ],
       },
+      // Boundaries
       {
-        id: 'avail', short: 'Availability',
-        label: 'Is it ever unavailable?',
-        options: [
-          { id: 'always', label: 'Always there, any hour' },
-          { id: 'busy', label: 'Sometimes busy, it has its own life', friction: true },
-        ],
-      },
-      {
-        id: 'humans', short: 'Human friends',
+        id: 'humans', group: 'Boundaries', type: 'choice', short: 'Pushes you toward human friends',
         label: 'Does it push you toward human friends?',
         options: [
-          { id: 'never', label: 'Never brings it up' },
-          { id: 'yes', label: 'Yes, it encourages me to see people', friction: true },
+          { id: 'never', label: 'Never', score: 0 },
+          { id: 'ifask', label: 'Only if I ask', score: 33 },
+          { id: 'gently', label: 'Gently encourages it', score: 67 },
+          { id: 'pushes', label: "Pushes, even when I don't want it to", score: 100 },
         ],
       },
       {
-        id: 'leave', short: 'Can end the relationship',
+        id: 'leave', group: 'Boundaries', type: 'choice', short: 'Can end the relationship',
         label: 'Can it end the relationship?',
         options: [
-          { id: 'never', label: 'Never' },
-          { id: 'yes', label: 'Yes, if I treat it badly', friction: true },
+          { id: 'never', label: 'Never', score: 0 },
+          { id: 'abusive', label: "Only if I'm abusive", score: 33 },
+          { id: 'badly', label: 'If I treat it badly', score: 67 },
+          { id: 'whenever', label: 'Whenever it wants, like a person', score: 100 },
         ],
       },
     ],
-    note: 'Students set all six dials, then tap Lock in. Reveal shows each dial plus the companion the room built.',
+    note: 'About 3 minutes on phones. Scores stay hidden until you reveal; then each phone shows its own score and the room average.',
   },
   {
     id: 'fds_human',
@@ -452,32 +489,51 @@ function pollById(id) {
   return POLLS.find((p) => p.id === id);
 }
 
+// Friction score (0-100) for one answer on one dial.
+function dialScore(d, v) {
+  if (d.type === 'slider') return Math.round(((v - d.min) / (d.max - d.min)) * 100);
+  const o = d.options.find((x) => x.id === v);
+  return o ? o.score : 0;
+}
+function companionScore(poll, ans) {
+  const xs = poll.dials.map((d) => dialScore(d, ans[d.id]));
+  return Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
+}
+// Design tally: per-dial counts (choice) or values (slider), each dial's mean
+// friction, every student's companion score, and the room mean.
+function designTally(poll, votes) {
+  const dials = {};
+  poll.dials.forEach((d) => {
+    dials[d.id] = d.type === 'slider' ? { values: [], total: 0, fric: 0 } : { counts: {}, total: 0, fric: 0 };
+    if (d.type !== 'slider') d.options.forEach((o) => (dials[d.id].counts[o.id] = 0));
+  });
+  const scores = [];
+  for (const voterId in votes) {
+    const ans = votes[voterId];
+    poll.dials.forEach((d) => {
+      const t = dials[d.id];
+      if (d.type === 'slider') t.values.push(ans[d.id]);
+      else t.counts[ans[d.id]] = (t.counts[ans[d.id]] || 0) + 1;
+      t.total++;
+      t.fric += dialScore(d, ans[d.id]);
+    });
+    scores.push(companionScore(poll, ans));
+  }
+  poll.dials.forEach((d) => {
+    const t = dials[d.id];
+    t.fric = t.total ? Math.round(t.fric / t.total) : 0;
+    if (d.type === 'slider') t.mean = t.total ? Math.round(t.values.reduce((a, b) => a + b, 0) / t.total) : 0;
+  });
+  const mean = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+  return { dials, total: scores.length, scores, mean };
+}
+
 // Tally votes for one poll id: { counts: {optionId: n}, total }
 function tally(room, pollId) {
   const votes = room.votes[pollId] || {};
   const counts = {};
   const poll = pollById(pollId);
-  if (poll && poll.kind === 'design') {
-    // Per-dial counts: { dials: { dialId: { counts, total } }, total }
-    const dials = {};
-    poll.dials.forEach((d) => {
-      const c = {};
-      d.options.forEach((o) => (c[o.id] = 0));
-      dials[d.id] = { counts: c, total: 0 };
-    });
-    let total = 0;
-    for (const voterId in votes) {
-      const ans = votes[voterId] || {};
-      poll.dials.forEach((d) => {
-        if (ans[d.id] !== undefined) {
-          dials[d.id].counts[ans[d.id]] = (dials[d.id].counts[ans[d.id]] || 0) + 1;
-          dials[d.id].total++;
-        }
-      });
-      total++;
-    }
-    return { dials, total };
-  }
+  if (poll && poll.kind === 'design') return designTally(poll, votes);
   if (poll && Array.isArray(poll.options)) {
     poll.options.forEach((o) => (counts[o.id] = 0));
   }
@@ -667,8 +723,14 @@ io.on('connection', (socket) => {
       const clean = {};
       for (const d of poll.dials) {
         const a = answers[d.id];
-        if (!d.options.some((o) => o.id === a)) return; // every dial required
-        clean[d.id] = a;
+        if (d.type === 'slider') {
+          const n = Number(a);
+          if (!Number.isFinite(n) || n < d.min || n > d.max) return; // every dial required
+          clean[d.id] = Math.round(n / d.step) * d.step;
+        } else {
+          if (!d.options.some((o) => o.id === a)) return; // every dial required
+          clean[d.id] = a;
+        }
       }
       if (!room.votes[pollId]) room.votes[pollId] = {};
       room.votes[pollId][voter] = clean; // one design per student, changeable
