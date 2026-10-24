@@ -152,6 +152,29 @@
   .menu-item .mtitle { display: block; font-weight: 700; font-size: 16px; }
   .menu-item .msub { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; line-height: 1.35; }
 
+  /* ---------------- Design your companion ---------------- */
+  .bars.dialgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+  .dialcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+  .dialcard h4 { margin: 0 0 8px; font-size: 17px; font-weight: 700; }
+  .mini-row { display: grid; grid-template-columns: 1fr 120px 46px; gap: 10px; align-items: center; font-size: 15px; margin-bottom: 6px; }
+  .mini-track { height: 14px; background: var(--panel2); border-radius: 5px; overflow: hidden; }
+  .mini-fill { height: 100%; border-radius: 5px; transition: width .6s; }
+  .design-sum .ds-row { display: grid; grid-template-columns: 260px 1fr 70px; gap: 12px; align-items: center; font-size: 18px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .design-sum .ds-row:last-of-type { border-bottom: none; }
+  .ds-pick { font-weight: 700; }
+  .ds-pick.smooth { color: var(--warn); }
+  .ds-pick.friction { color: var(--good); }
+  .ds-foot { margin-top: 10px; font-size: 19px; color: var(--ink); }
+  .ds-foot b { color: var(--warn); }
+  .design-sum.compact .ds-row { font-size: 15px; padding: 3px 0; grid-template-columns: 220px 1fr 60px; }
+  .design-sum.compact .ds-foot { font-size: 16px; }
+  .pdial { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .pdial-label { font-weight: 700; font-size: 17px; margin-bottom: 10px; line-height: 1.3; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 11px 14px; font-size: 15px; font-weight: 600; border-radius: 999px; border: 2px solid var(--line); background: var(--panel2); color: var(--ink); }
+  .chip.chosen { border-color: var(--accent); background: rgba(110,168,254,0.2); }
+  .part-body.scroll { justify-content: flex-start; }
+
   /* ---------------- Participant ---------------- */
   #part { min-height: 100%; display: flex; flex-direction: column; }
   .part-head { padding: 12px 18px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--muted); }
@@ -218,6 +241,8 @@
     <div class="stagelabel hidden" id="hStageLabel"></div>
     <div class="context hidden" id="hContext"></div>
     <div class="question" id="hQuestion">Press <b>Start ▶</b> to open the first question.</div>
+
+    <div class="drift design-sum hidden" id="hDesign"></div>
 
     <div class="voting-note hidden" id="hVotingNote">
       <span class="pill"><span class="dots"></span>&nbsp; Voting open — results hidden</span>
@@ -394,6 +419,7 @@ const shorten = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : (s ||
 
 function menuLabel(poll) {
   if (poll.kind === 'ladder-summary') return { title: 'Results — comfort collapse', sub: '' };
+  if (poll.kind === 'design') return { title: 'Design your companion (6 dials)', sub: shorten(poll.context, 80) };
   if (poll.stageLabel) return { title: poll.stageLabel, sub: shorten(poll.context || poll.question, 80) };
   if (poll.rungLabel) return { title: 'Would you allow it? — ' + poll.rungLabel, sub: shorten(poll.question, 80) };
   return { title: shorten(poll.question, 78), sub: shorten(poll.context || '', 80) };
@@ -433,7 +459,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(
 function renderHostIdle() {
   $('hSection').textContent = 'Ready';
   $('hQuestion').innerHTML = 'Click <b>☰ Questions</b> to pick any question in any order — or <b>Start ▶</b> to begin with the first.';
-  ['hStageLabel','hContext','hVotingNote','hBars','hDrift'].forEach((id)=>$(id).classList.add('hidden'));
+  ['hStageLabel','hContext','hVotingNote','hBars','hDrift','hDesign'].forEach((id)=>$(id).classList.add('hidden'));
   $('cNow').textContent = POLLS.length + ' questions loaded';
   $('cNote').textContent = '';
   $('cNext').textContent = 'Start ▶';
@@ -470,6 +496,29 @@ function renderHostPoll(poll, st) {
 
   const isSummary = poll.kind === 'ladder-summary';
 
+  // Companion summary card on the follow-up questions (always visible there).
+  if (poll.showDesign) {
+    const dp = POLLS.find((p) => p.id === poll.showDesign);
+    renderDesignSummary(dp, st.designTally, true);
+  } else if (poll.kind !== 'design') {
+    $('hDesign').classList.add('hidden');
+  }
+
+  if (poll.kind === 'design') {
+    $('hDrift').classList.add('hidden');
+    if (!st.revealed) {
+      $('hVotingNote').classList.remove('hidden');
+      $('hBars').classList.add('hidden');
+      $('hDesign').classList.add('hidden');
+    } else {
+      $('hVotingNote').classList.add('hidden');
+      $('hContext').classList.add('hidden');
+      renderDesignSummary(poll, st.tally, true);
+      renderDesignDials(poll, st.tally);
+    }
+    return;
+  }
+
   if (isSummary) {
     $('hVotingNote').classList.add('hidden');
     $('hBars').classList.add('hidden');
@@ -491,8 +540,67 @@ function renderHostPoll(poll, st) {
   }
 }
 
+function modalOption(dial, dt) {
+  let best = null, bestC = -1, tied = [];
+  dial.options.forEach((o) => {
+    const c = (dt && dt.counts && dt.counts[o.id]) || 0;
+    if (c > bestC) { best = o; bestC = c; tied = [o]; }
+    else if (c === bestC) tied.push(o);
+  });
+  return { opt: best, count: bestC, total: (dt && dt.total) || 0, tie: tied.length > 1 };
+}
+
+function renderDesignSummary(poll, tally, compact) {
+  const wrap = $('hDesign');
+  if (!poll || !tally || !tally.total) {
+    wrap.classList.remove('hidden');
+    wrap.className = 'drift design-sum' + (compact ? ' compact' : '');
+    wrap.innerHTML = '<h3>The companion this room built</h3><div class="ds-foot">No designs locked in yet.</div>';
+    return;
+  }
+  wrap.className = 'drift design-sum' + (compact ? ' compact' : '');
+  let kept = 0;
+  let html = '<h3>The companion this room built (' + tally.total + ' designs)</h3>';
+  poll.dials.forEach((d) => {
+    const m = modalOption(d, tally.dials[d.id]);
+    const fr = !m.tie && m.opt && m.opt.friction;
+    if (fr) kept++;
+    const pick = m.tie ? 'Split vote' : (m.opt ? m.opt.label : '—');
+    html += '<div class="ds-row"><span>' + d.short + '</span>' +
+      '<span class="ds-pick ' + (m.tie ? '' : (fr ? 'friction' : 'smooth')) + '">' + pick + '</span>' +
+      '<span style="text-align:right;color:var(--muted)">' + pct(m.count, m.total) + '%</span></div>';
+  });
+  html += '<div class="ds-foot">Friction the room kept: <b>' + kept + ' of ' + poll.dials.length + '</b> settings.</div>';
+  wrap.innerHTML = html;
+}
+
+function renderDesignDials(poll, tally) {
+  const wrap = $('hBars');
+  wrap.className = 'bars dialgrid';
+  wrap.innerHTML = '';
+  poll.dials.forEach((d) => {
+    const dt = tally.dials[d.id] || { counts: {}, total: 0 };
+    const card = document.createElement('div');
+    card.className = 'dialcard';
+    let html = '<h4>' + d.label + '</h4>';
+    d.options.forEach((o) => {
+      const c = dt.counts[o.id] || 0;
+      const p = pct(c, dt.total);
+      html += '<div class="mini-row"><span>' + o.label + '</span>' +
+        '<div class="mini-track"><div class="mini-fill" data-w="' + p + '" style="background:' + (o.friction ? 'var(--good)' : 'var(--warn)') + '"></div></div>' +
+        '<span style="text-align:right">' + p + '%</span></div>';
+    });
+    card.innerHTML = html;
+    wrap.appendChild(card);
+  });
+  requestAnimationFrame(() => {
+    wrap.querySelectorAll('.mini-fill').forEach((el) => (el.style.width = el.dataset.w + '%'));
+  });
+}
+
 function renderHostBars(poll, tally) {
   const wrap = $('hBars');
+  wrap.className = 'bars';
   wrap.innerHTML = '';
   wrap.classList.remove('hidden');
   const total = tally.total || 0;
@@ -573,8 +681,63 @@ function renderParticipantPoll(active) {
   $('pContext').textContent = currentPoll.context || '';
   $('pContext').classList.toggle('hidden', !currentPoll.context);
   $('pQuestion').textContent = currentPoll.question;
+  $('pBody').classList.toggle('scroll', currentPoll.kind === 'design');
+  if (currentPoll.kind === 'design') {
+    draft = Object.assign({}, myVote || {});
+    buildDesign(active.revealed);
+    return;
+  }
   buildOptions(active.revealed ? active.tally : null);
   setStatus(active.revealed);
+}
+
+let draft = {};
+function buildDesign(revealed) {
+  const wrap = $('pOptions');
+  wrap.innerHTML = '';
+  currentPoll.dials.forEach((d) => {
+    const box = document.createElement('div');
+    box.className = 'pdial';
+    box.innerHTML = '<div class="pdial-label">' + d.label + '</div>';
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    d.options.forEach((o) => {
+      const c = document.createElement('button');
+      c.className = 'chip' + (draft[d.id] === o.id ? ' chosen' : '');
+      c.textContent = o.label;
+      c.onclick = () => {
+        draft[d.id] = o.id;
+        Array.from(chips.children).forEach((el, i) => el.classList.toggle('chosen', d.options[i].id === o.id));
+        updateLockBtn();
+      };
+      chips.appendChild(c);
+    });
+    box.appendChild(chips);
+    wrap.appendChild(box);
+  });
+  const lock = document.createElement('button');
+  lock.className = 'btn';
+  lock.id = 'pLock';
+  lock.onclick = () => {
+    if (!allSet()) return;
+    socket.emit('participant:vote', { pollId: currentPoll.id, answers: draft });
+  };
+  wrap.appendChild(lock);
+  updateLockBtn();
+  if (revealed) { $('pStatus').className = 'status'; $('pStatus').textContent = 'Results are on the shared screen.'; }
+}
+function allSet() { return currentPoll.dials.every((d) => draft[d.id]); }
+function updateLockBtn() {
+  const b = $('pLock'); if (!b) return;
+  const n = currentPoll.dials.filter((d) => draft[d.id]).length;
+  const changed = !myVote || currentPoll.dials.some((d) => draft[d.id] !== myVote[d.id]);
+  b.disabled = !allSet();
+  b.style.opacity = allSet() ? '1' : '0.45';
+  b.textContent = !allSet() ? 'Set every dial (' + n + ' of ' + currentPoll.dials.length + ')'
+    : (myVote && !changed ? '✓ Locked in' : (myVote ? 'Update my companion' : 'Lock in my companion'));
+  const st = $('pStatus');
+  if (myVote && !changed) { st.className = 'status ok'; st.textContent = 'Locked in. Change any dial and tap again to update. Waiting for the presenter…'; }
+  else { st.className = 'status'; st.textContent = ''; }
 }
 
 function buildOptions(revealTally) {
@@ -616,9 +779,16 @@ function setStatus(revealed) {
 socket.on('participant:poll', (data) => {
   renderParticipantPoll({ poll: data.poll, revealed: data.revealed, myVote: null, tally: null });
 });
-socket.on('participant:voteAck', (d) => { myVote = d.optionId; });
+socket.on('participant:voteAck', (d) => {
+  if (d.answers) { myVote = d.answers; updateLockBtn(); }
+  else myVote = d.optionId;
+});
 socket.on('participant:revealed', (d) => {
   if (currentPoll && currentPoll.id === d.pollId) {
+    if (currentPoll.kind === 'design') {
+      $('pStatus').className = 'status'; $('pStatus').textContent = 'Results are on the shared screen.';
+      return;
+    }
     buildOptions(d.tally);
     setStatus(true);
   }

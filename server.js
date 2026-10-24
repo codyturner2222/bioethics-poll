@@ -326,6 +326,106 @@ const POLLS = [
     ],
     note: 'Shows the shift from the first vote on the top rung below the bars.',
   },
+
+  // ---- FDS 100-6 · Relationships with AI: Design your companion ---------
+  // kind 'design': each student sets every dial, then locks in once. The
+  // option marked friction:true is the one that keeps the friction a real
+  // friendship involves; the room summary counts how many of those survived.
+  {
+    id: 'fds_companion',
+    section: 'FDS · Design your companion',
+    kind: 'design',
+    context: 'You get to design your ideal AI companion: a friend who is there for you every day. Set every dial the way you would actually want it.',
+    question: 'Design your companion',
+    dials: [
+      {
+        id: 'disagree', short: 'Disagrees with you',
+        label: 'How often does it disagree with you?',
+        options: [
+          { id: 'never', label: 'Never' },
+          { id: 'some', label: 'Sometimes', friction: true },
+          { id: 'often', label: 'Often', friction: true },
+        ],
+      },
+      {
+        id: 'truths', short: 'Hard truths about you',
+        label: 'Does it tell you hard truths about yourself?',
+        options: [
+          { id: 'no', label: 'No, it keeps things supportive' },
+          { id: 'yes', label: 'Yes, even when it stings', friction: true },
+        ],
+      },
+      {
+        id: 'needs', short: 'Needs of its own',
+        label: 'Does it have needs of its own?',
+        options: [
+          { id: 'no', label: "No, it's all about me" },
+          { id: 'yes', label: 'Yes, sometimes it needs me to listen', friction: true },
+        ],
+      },
+      {
+        id: 'avail', short: 'Availability',
+        label: 'Is it ever unavailable?',
+        options: [
+          { id: 'always', label: 'Always there, any hour' },
+          { id: 'busy', label: 'Sometimes busy, it has its own life', friction: true },
+        ],
+      },
+      {
+        id: 'humans', short: 'Human friends',
+        label: 'Does it push you toward human friends?',
+        options: [
+          { id: 'never', label: 'Never brings it up' },
+          { id: 'yes', label: 'Yes, it encourages me to see people', friction: true },
+        ],
+      },
+      {
+        id: 'leave', short: 'Can end the relationship',
+        label: 'Can it end the relationship?',
+        options: [
+          { id: 'never', label: 'Never' },
+          { id: 'yes', label: 'Yes, if I treat it badly', friction: true },
+        ],
+      },
+    ],
+    note: 'Students set all six dials, then tap Lock in. Reveal shows each dial plus the companion the room built.',
+  },
+  {
+    id: 'fds_human',
+    section: 'FDS · Design your companion',
+    kind: 'binary',
+    showDesign: 'fds_companion',
+    question: 'Would you want a HUMAN friend with exactly these settings?',
+    options: [
+      { id: 'yes', label: 'Yes' },
+      { id: 'no', label: 'No' },
+    ],
+  },
+  {
+    id: 'fds_mirror',
+    section: 'FDS · Design your companion',
+    kind: 'binary',
+    showDesign: 'fds_companion',
+    question: 'Did this room design a friend, or a mirror?',
+    options: [
+      { id: 'friend', label: 'A friend' },
+      { id: 'mirror', label: 'A mirror' },
+    ],
+  },
+  {
+    id: 'fds_condition',
+    section: 'FDS · Design your companion',
+    kind: 'multiple',
+    showDesign: 'fds_companion',
+    question: "Which of Aristotle's conditions for friendship does this companion fail most clearly?",
+    options: [
+      { id: 'mutuality', label: 'Mutuality' },
+      { id: 'authenticity', label: 'Honesty / authenticity' },
+      { id: 'equality', label: 'Equality' },
+      { id: 'diversity', label: 'Diversity of interactions' },
+      { id: 'none', label: 'None of them' },
+    ],
+  },
 ];
 
 // A lighter version sent to clients (drop host-only speaker notes).
@@ -357,6 +457,27 @@ function tally(room, pollId) {
   const votes = room.votes[pollId] || {};
   const counts = {};
   const poll = pollById(pollId);
+  if (poll && poll.kind === 'design') {
+    // Per-dial counts: { dials: { dialId: { counts, total } }, total }
+    const dials = {};
+    poll.dials.forEach((d) => {
+      const c = {};
+      d.options.forEach((o) => (c[o.id] = 0));
+      dials[d.id] = { counts: c, total: 0 };
+    });
+    let total = 0;
+    for (const voterId in votes) {
+      const ans = votes[voterId] || {};
+      poll.dials.forEach((d) => {
+        if (ans[d.id] !== undefined) {
+          dials[d.id].counts[ans[d.id]] = (dials[d.id].counts[ans[d.id]] || 0) + 1;
+          dials[d.id].total++;
+        }
+      });
+      total++;
+    }
+    return { dials, total };
+  }
   if (poll && Array.isArray(poll.options)) {
     poll.options.forEach((o) => (counts[o.id] = 0));
   }
@@ -394,6 +515,8 @@ function hostState(room) {
   if (poll) {
     state.tally = tally(room, poll.id);
     if (poll.group) state.groupTallies = groupTallies(room, poll.group);
+    if (poll.showDesign) state.designTally = tally(room, poll.showDesign);
+    if (poll.kind === 'design') state.designTally = state.tally;
     if (poll.compareWith) {
       state.groupTallies = [
         { id: poll.compareWith, stageLabel: 'First vote', ...tally(room, poll.compareWith) },
@@ -531,12 +654,28 @@ io.on('connection', (socket) => {
     emitHost(room);
   });
 
-  socket.on('participant:vote', ({ pollId, optionId } = {}) => {
+  socket.on('participant:vote', ({ pollId, optionId, answers } = {}) => {
     const room = rooms.get(socket.data.code);
     if (!room) return;
     const voter = socket.data.voterId;
     if (!voter) return;
     const poll = pollById(pollId);
+    if (poll && poll.kind === 'design') {
+      const active = POLLS[room.activeIndex];
+      if (!active || active.id !== pollId) return;
+      if (!answers || typeof answers !== 'object') return;
+      const clean = {};
+      for (const d of poll.dials) {
+        const a = answers[d.id];
+        if (!d.options.some((o) => o.id === a)) return; // every dial required
+        clean[d.id] = a;
+      }
+      if (!room.votes[pollId]) room.votes[pollId] = {};
+      room.votes[pollId][voter] = clean; // one design per student, changeable
+      socket.emit('participant:voteAck', { pollId, answers: clean });
+      emitHost(room);
+      return;
+    }
     if (!poll || !Array.isArray(poll.options)) return;
     if (!poll.options.some((o) => o.id === optionId)) return;
     // Only accept votes for the currently active poll (rejects stale/queued
