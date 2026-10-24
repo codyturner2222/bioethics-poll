@@ -343,18 +343,6 @@ const POLLS = [
     note: 'Reveal: UBC study (296 first-years, JESP 2026). Only texting a person lowered loneliness. The chatbot did no better than journaling, though it lifted mood more, and it was MORE empathetic than the human partners.',
   },
   {
-    id: 'fds_lonely_tonight',
-    section: 'FDS · Relationships with AI',
-    kind: 'multiple',
-    question: 'Suppose something makes you feel less lonely tonight but lonelier over the next year. Is it good for you?',
-    options: [
-      { id: 'yes', label: 'Yes, feeling better matters' },
-      { id: 'no', label: "No, it's bad for me overall" },
-      { id: 'depends', label: 'It depends on how I use it' },
-    ],
-    note: 'Callback to the experience machine (9/9): is a good life just how it feels from the inside?',
-  },
-  {
     id: 'fds_humanspass',
     section: 'FDS · Relationships with AI',
     kind: 'spectrum',
@@ -544,15 +532,15 @@ const POLLS = [
     id: 'fds_business',
     section: 'FDS · Relationships with AI',
     kind: 'multiple',
-    context: 'A companion app earns money when you stay engaged. A user who makes human friends and stops using it is a lost customer.',
-    question: "Should companion apps be required to nudge users toward human relationships, even if it costs them revenue and users don't want the nudge?",
+    context: "Phones already send screen-time alerts. Suppose a companion app notices you've been talking to it more than four hours a day for a month, while your messages to friends have dropped off. The app makes more money the more you use it.",
+    question: 'Should the app be required to nudge you toward the people in your life, even if you never asked it to?',
     options: [
-      { id: 'all', label: 'Yes, required for every user' },
-      { id: 'isolated', label: 'Only for users who seem isolated' },
-      { id: 'choice', label: "No, it should be the user's choice" },
-      { id: 'company', label: "No, it's the company's call" },
+      { id: 'required', label: 'Yes, it should be required' },
+      { id: 'optin', label: 'Only if I turn that setting on' },
+      { id: 'choice', label: "No, how I spend my time is my choice" },
+      { id: 'company', label: "No, that's up to the company" },
     ],
-    note: 'Autonomy vs. paternalism, plus the profit motive.',
+    note: 'Autonomy vs. paternalism, plus the profit motive. Compare: would you want the same rule for social media apps?',
   },
   {
     id: 'fds_privileged',
@@ -575,17 +563,6 @@ const POLLS = [
       { id: 'nurse', label: 'Alert a nurse' },
     ],
     note: 'How much should we optimize for longevity vs. quality of life?',
-  },
-  {
-    id: 'fds_carefor',
-    section: 'FDS · Relationships with AI',
-    kind: 'binary',
-    question: 'Do we have an obligation to personally care for family members, or just an obligation to make sure they are cared for?',
-    options: [
-      { id: 'personally', label: 'Personally care for them' },
-      { id: 'ensure', label: "Make sure they're cared for" },
-    ],
-    note: "Vallor's question, and Battisti's outcome vs. authenticity distinction again.",
   },
 ];
 

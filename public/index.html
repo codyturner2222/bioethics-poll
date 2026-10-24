@@ -467,8 +467,14 @@ function menuLabel(poll) {
 function buildMenu() {
   const list = $('menuList');
   list.innerHTML = '';
+  // One header per section, even when a section's questions are not
+  // contiguous in the running order (e.g. the design poll sits mid-session).
+  const order = [];
+  POLLS.forEach((p) => { if (!order.includes(p.section)) order.push(p.section); });
+  const items = [];
+  order.forEach((sec) => POLLS.forEach((p, i) => { if (p.section === sec) items.push([p, i]); }));
   let lastSection = null;
-  POLLS.forEach((poll, i) => {
+  items.forEach(([poll, i]) => {
     if (poll.section !== lastSection) {
       lastSection = poll.section;
       const h = document.createElement('div');
